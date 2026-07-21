@@ -8,7 +8,7 @@ void setup()
     Serial.begin(115200);
     motor.begin();
     delay(2000);
-    motor.feed();
+    motor.feed(2);
 }
 
 void loop()

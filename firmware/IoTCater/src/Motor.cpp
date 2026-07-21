@@ -14,8 +14,8 @@ Motor::Motor()
 //Inicializaciones 
 void Motor::begin()
 {
-    _stepper.setMaxSpeed(500);
-    _stepper.setAcceleration(300);
+    _stepper.setMaxSpeed(300);
+    _stepper.setAcceleration(200);
     Serial.println("Motor inicializado");
 }
 
