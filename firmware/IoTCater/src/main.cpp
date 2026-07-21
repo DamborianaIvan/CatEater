@@ -6,12 +6,12 @@ Motor motor;
 void setup()
 {
     Serial.begin(115200);
-
     motor.begin();
-
-    Serial.println("CatFeeder iniciado");
+    delay(2000);
+    motor.feed();
 }
 
 void loop()
 {
+    motor.update();
 }
