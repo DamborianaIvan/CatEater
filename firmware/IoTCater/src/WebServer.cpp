@@ -1,7 +1,8 @@
 #include "WebServer.h"
 #include "Pages.h"
 
-WebServer::WebServer()
+WebServer::WebServer(Motor& motor)
+    : _motor(motor)
 {
 }
 void WebServer::begin()
@@ -27,6 +28,11 @@ void WebServer::registerRoutes()
     {
         handleNotFound();
     });
+
+    _server.on("/feed", HTTP_POST, [this]()
+    {
+        handleFeed();
+    });
 }
 
 void WebServer::handleHome()
@@ -45,4 +51,36 @@ void WebServer::handleNotFound()
         "text/plain",
         "404 - Recurso no encontrado."
     );
+}
+
+void WebServer::handleFeed()
+{
+    bool accepted = _motor.feed();
+
+    if (accepted)
+    {
+        _server.send(
+            200,
+            "application/json",
+            R"json(
+{
+    "success": true,
+    "message": "Feeding started"
+}
+)json"
+        );
+    }
+    else
+    {
+        _server.send(
+            409,
+            "application/json",
+            R"json(
+{
+    "success": false,
+    "message": "Motor is busy"
+}
+)json"
+        );
+    }
 }

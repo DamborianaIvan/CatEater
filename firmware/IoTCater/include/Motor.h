@@ -11,7 +11,9 @@ public:
 
     void begin();
     void update();
-    void feed(int portions=1);
+
+    bool isFeeding() const;
+    bool feed(int portions=1);
 
     
 private:

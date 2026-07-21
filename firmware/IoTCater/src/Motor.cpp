@@ -20,22 +20,24 @@ void Motor::begin()
 }
 
 //Es la encargada de la logica para el funcionamiento de el motor
-void Motor::feed(int portions)
+bool Motor::feed(int portions)
 {
     if (_isFeeding)
     {
         Serial.println("El motor ya esta alimentando.");
-        return;
+        return false;
     }
     if (portions <= 0)
     {
         Serial.println("Cantidad de porciones invalida.");
-        return;
+        return false;
     }
     long steps = STEPS_PER_PORTION * portions;
     _stepper.move(steps);
     _isFeeding = true;
+    return true;
 }
+
 
 //Esta funcion es la encargada de hacer que el motor avance. La lunea .run hace que avance.
 void Motor::update()
@@ -46,4 +48,9 @@ void Motor::update()
         _isFeeding = false;
         Serial.println("Alimentacion finalizada.");
     }
+}
+
+bool Motor::isFeeding() const
+{
+    return _isFeeding;
 }

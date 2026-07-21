@@ -55,6 +55,11 @@ void WiFiService::update()
     }
 }
 
+String WiFiService::getIpAddress() const
+{
+    return WiFi.localIP().toString();
+}
+
 void WiFiService::printConnectionInfo()
 {
     Serial.println();

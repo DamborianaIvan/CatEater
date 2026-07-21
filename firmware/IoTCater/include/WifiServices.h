@@ -18,6 +18,7 @@ public:
     void update();
 
     bool isConnected() const;
+    String getIpAddress() const;
 
 private:
     ConnectionState _state = ConnectionState::Disconnected;

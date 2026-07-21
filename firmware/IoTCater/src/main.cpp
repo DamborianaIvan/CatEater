@@ -6,13 +6,13 @@
 
 Motor motor;
 WiFiService wifi;
-WebServer server;
+WebServer webServer(motor);
 void setup()
 {
     Serial.begin(115200);
     motor.begin();
     wifi.begin(WIFI_SSID, WIFI_PASSWORD);
-    server.begin();
+    webServer.begin();
 
     motor.feed(2);
 }
@@ -21,5 +21,5 @@ void loop()
 {
     motor.update();
     wifi.update();
-    server.update();
+    webServer.update();
 }
