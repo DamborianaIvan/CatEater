@@ -86,3 +86,30 @@ void WebServer::handleFeed()
         );
     }
 }
+
+void WebServer::handleStatus()
+{
+    const bool feeding = _motor.isFeeding();
+    const bool wifiConnected = _wifi.isConnected();
+    const String ipAddress = _wifi.getIpAddress();
+
+    String response = "{";
+    response += "\"feeding\": ";
+    response += feeding ? "true" : "false";
+    response += ",";
+
+    response += "\"wifiConnected\": ";
+    response += wifiConnected ? "true" : "false";
+    response += ",";
+
+    response += "\"ipAddress\": ";
+    response += "\"" + ipAddress + "\"";
+
+    response += "}";
+
+    _server.send(
+        200,
+        "application/json",
+        response
+    );
+}

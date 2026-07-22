@@ -24,6 +24,7 @@ private:
     void registerRoutes();
     void handleHome();
     void handleFeed();
+    void handleStatus();
     void handleNotFound();
 };
 
