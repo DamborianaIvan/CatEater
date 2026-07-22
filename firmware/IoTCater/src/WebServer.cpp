@@ -1,8 +1,10 @@
 #include "WebServer.h"
 #include "Pages.h"
 
-WebServer::WebServer(Motor& motor)
-    : _motor(motor)
+WebServer::WebServer(Motor& motor,
+                     WiFiService& wifi)
+    : _motor(motor),
+      _wifi(wifi)
 {
 }
 void WebServer::begin()

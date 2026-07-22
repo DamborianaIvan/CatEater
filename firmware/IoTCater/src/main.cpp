@@ -6,7 +6,7 @@
 
 Motor motor;
 WiFiService wifi;
-WebServer webServer(motor);
+WebServer webServer(motor, wifi); 
 void setup()
 {
     Serial.begin(115200);

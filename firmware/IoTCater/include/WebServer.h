@@ -4,19 +4,21 @@
 #include <Arduino.h>
 #include "Motor.h"
 #include <ESP8266WebServer.h>
+#include "WifiServices.h"
 
 
 class WebServer
 {
 public:
-    explicit WebServer(Motor& motor);
+    explicit WebServer(Motor& motor,
+          WiFiService& wifi);
 
     void begin();
     void update();
 
 private:
     Motor& _motor;
-
+    WiFiService& _wifi;
     ESP8266WebServer _server{80};
 
     void registerRoutes();

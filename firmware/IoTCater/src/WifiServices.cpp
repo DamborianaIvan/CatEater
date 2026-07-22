@@ -60,6 +60,10 @@ String WiFiService::getIpAddress() const
     return WiFi.localIP().toString();
 }
 
+bool WiFiService::isConnected() const
+{
+    return WiFi.status() == WL_CONNECTED;
+}
 void WiFiService::printConnectionInfo()
 {
     Serial.println();
