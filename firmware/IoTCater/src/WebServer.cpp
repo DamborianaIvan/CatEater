@@ -35,7 +35,14 @@ void WebServer::registerRoutes()
     {
         handleFeed();
     });
-}
+
+    _server.on("/status", [this]()
+    {
+        handleStatus();
+    });
+}   
+
+
 
 void WebServer::handleHome()
 {
