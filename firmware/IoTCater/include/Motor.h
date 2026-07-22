@@ -11,13 +11,16 @@ public:
 
     void begin();
     void update();
-
+    
+    bool setStepsPerFeed(int steps);
     bool isFeeding() const;
     bool feed(int portions=1);
+    bool getStepsPerFeed() const;
 
     
 private:
     bool _isFeeding = false;
+    int _stepsPerFeed;
     static const long STEPS_PER_PORTION = 2048;
     static const uint8_t PIN_IN1 = D1;
     static const uint8_t PIN_IN2 = D3;

@@ -1,5 +1,6 @@
 #include "WebServer.h"
 #include "Pages.h"
+#include <ArduinoJson.h>
 
 WebServer::WebServer(Motor& motor,
                      WiFiService& wifi)
@@ -40,6 +41,10 @@ void WebServer::registerRoutes()
     {
         handleStatus();
     });
+
+    _server.on("/config", HTTP_PUT, [this]() {
+        handleConfig();
+});
 }   
 
 
@@ -120,3 +125,81 @@ void WebServer::handleStatus()
         response
     );
 }
+
+void WebServer::handleConfig()
+{
+    //Leer el body
+    String body = _server.arg("plain");
+
+    //Parsear JSON
+    JsonDocument doc;
+    DeserializationError error = deserializeJson(doc, body);
+
+    if (error)
+    {
+        _server.send(
+            400,
+            "application/json",
+            R"({
+                "success": false,
+                "message": "Invalid JSON"
+            })"
+        );
+        return;
+    }
+
+    if (!doc.containsKey("stepsPerPortion"))
+    {
+        _server.send(
+            400,
+            "application/json",
+            R"({
+                "success": false,
+                "message": "Falta el campo"
+            })"
+        );
+        return;
+      
+    }
+
+    if (!doc["stepsPerPortion"].is<int>())
+    {
+        _server.send(
+            400,
+            "application/json",
+            R"({
+                "success": false,
+                "message": "Campo invalido"
+            })"
+        );
+        return;
+    }
+
+    //Obtener el dato
+    int steps = doc["stepsPerPortion"];
+
+    //Intentar actualizar el Motor
+    if (!_motor.setStepsPerFeed(steps))
+    {
+        _server.send(
+            400,
+            "application/json",
+            R"({
+                "success": false,
+                "message": "Invalid stepsPerPortion"
+            })"
+        );
+        return;
+    }
+
+    //Responder éxito
+    _server.send(
+        200,
+        "application/json",
+        R"({
+            "success": true,
+            "message": "Configuration updated"
+        })"
+    );
+}
+

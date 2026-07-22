@@ -26,6 +26,7 @@ private:
     void handleFeed();
     void handleStatus();
     void handleNotFound();
+    void handleConfig();
 };
 
 #endif

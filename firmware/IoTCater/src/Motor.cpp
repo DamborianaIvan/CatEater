@@ -1,16 +1,27 @@
 #include "Motor.h"
 
 Motor::Motor()
-    : _stepper(
+        :_stepsPerFeed(2048),
+        _stepper(
         AccelStepper::FULL4WIRE,
         PIN_IN1,
         PIN_IN3,
         PIN_IN2,
         PIN_IN4)
+        
 {
 }
 ;
-
+//Esta funcion es la encargada de hacer que el motor avance. La linea .run hace que avance.
+void Motor::update()
+{
+    _stepper.run();
+    if (_isFeeding && _stepper.distanceToGo() == 0)
+    {
+        _isFeeding = false;
+        Serial.println("Alimentacion finalizada.");
+    }
+}
 //Inicializaciones 
 void Motor::begin()
 {
@@ -32,24 +43,26 @@ bool Motor::feed(int portions)
         Serial.println("Cantidad de porciones invalida.");
         return false;
     }
-    long steps = STEPS_PER_PORTION * portions;
+    //el static_cast es para decir que el valor no va a cambiar yt explicita la conversion a long
+    const long steps = static_cast<long>(_stepsPerFeed) * portions;
     _stepper.move(steps);
     _isFeeding = true;
     return true;
 }
-
-
-//Esta funcion es la encargada de hacer que el motor avance. La lunea .run hace que avance.
-void Motor::update()
+bool Motor::setStepsPerFeed(int steps)
 {
-    _stepper.run();
-    if (_isFeeding && _stepper.distanceToGo() == 0)
+    if (steps <= 0)
     {
-        _isFeeding = false;
-        Serial.println("Alimentacion finalizada.");
+        return false;
     }
-}
 
+    _stepsPerFeed = steps;
+    return true;
+}
+bool Motor::getStepsPerFeed() const
+{
+    return _stepsPerFeed;
+}
 bool Motor::isFeeding() const
 {
     return _isFeeding;
