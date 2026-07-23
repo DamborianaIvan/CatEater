@@ -1,8 +1,7 @@
 #include "Motor.h"
 
 Motor::Motor()
-        :_stepsPerFeed(2048),
-        _stepper(
+        :_stepper(
         AccelStepper::FULL4WIRE,
         PIN_IN1,
         PIN_IN3,
@@ -59,7 +58,7 @@ bool Motor::setStepsPerFeed(int steps)
     _stepsPerFeed = steps;
     return true;
 }
-bool Motor::getStepsPerFeed() const
+int Motor::getStepsPerFeed() const
 {
     return _stepsPerFeed;
 }

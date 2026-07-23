@@ -1,11 +1,15 @@
 #include "WebServer.h"
 #include "Pages.h"
+#include "WifiServices.h"
+#include "ConfigurationStorage.h"
 #include <ArduinoJson.h>
 
 WebServer::WebServer(Motor& motor,
-                     WiFiService& wifi)
+                     WiFiService& wifi,
+                    ConfigurationStorage& storage)
     : _motor(motor),
-      _wifi(wifi)
+      _wifi(wifi),
+      _storage(storage)
 {
 }
 void WebServer::begin()
@@ -43,8 +47,12 @@ void WebServer::registerRoutes()
     });
 
     _server.on("/config", HTTP_PUT, [this]() {
+        handleUpdateConfig();
+    });
+
+    _server.on("/config", HTTP_GET, [this]() {
         handleConfig();
-});
+    });
 }   
 
 
@@ -126,7 +134,7 @@ void WebServer::handleStatus()
     );
 }
 
-void WebServer::handleConfig()
+void WebServer::handleUpdateConfig()
 {
     //Leer el body
     String body = _server.arg("plain");
@@ -148,7 +156,7 @@ void WebServer::handleConfig()
         return;
     }
 
-    if (!doc.containsKey("stepsPerPortion"))
+    if (!doc.containsKey("stepsPerFeed"))
     {
         _server.send(
             400,
@@ -162,7 +170,7 @@ void WebServer::handleConfig()
       
     }
 
-    if (!doc["stepsPerPortion"].is<int>())
+    if (!doc["stepsPerFeed"].is<int>())
     {
         _server.send(
             400,
@@ -176,7 +184,7 @@ void WebServer::handleConfig()
     }
 
     //Obtener el dato
-    int steps = doc["stepsPerPortion"];
+    int steps = doc["stepsPerFeed"];
 
     //Intentar actualizar el Motor
     if (!_motor.setStepsPerFeed(steps))
@@ -191,7 +199,19 @@ void WebServer::handleConfig()
         );
         return;
     }
-
+    
+    if (!_storage.saveStepsPerFeed(steps))
+    {
+        _server.send(
+            500,
+            "application/json",
+            R"({
+                "success": false,
+                "message": "Failed to save configuration"
+            })"
+        );
+        return;
+    }
     //Responder éxito
     _server.send(
         200,
@@ -203,3 +223,16 @@ void WebServer::handleConfig()
     );
 }
 
+void WebServer::handleConfig(){
+    int configuracionActual = _motor.getStepsPerFeed();
+
+    String response = "{";
+    response += "\"stepsPerFeed\": ";
+    response += configuracionActual;
+    response += "}";
+    _server.send(
+        200,
+        "application/json",
+        response);
+      
+}

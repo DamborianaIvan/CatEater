@@ -7,16 +7,21 @@
 
 Motor motor;
 WiFiService wifi;
-WebServer webServer(motor, wifi); 
+ConfigurationStorage storage;
+WebServer webServer(motor, wifi, storage); 
 void setup()
 {
     Serial.begin(115200);
-    
+
     motor.begin();
+
+    storage.begin();
+
+    int steps = storage.loadStepsPerFeed(1024);
+    motor.setStepsPerFeed(steps);
+
     wifi.begin(WIFI_SSID, WIFI_PASSWORD);
     webServer.begin();
-
-    motor.feed(2);
 }
 
 void loop()

@@ -5,13 +5,15 @@
 #include "Motor.h"
 #include <ESP8266WebServer.h>
 #include "WifiServices.h"
+#include "ConfigurationStorage.h"
 
 
 class WebServer
 {
 public:
     explicit WebServer(Motor& motor,
-          WiFiService& wifi);
+          WiFiService& wifi,
+        ConfigurationStorage& storage);
 
     void begin();
     void update();
@@ -19,6 +21,7 @@ public:
 private:
     Motor& _motor;
     WiFiService& _wifi;
+    ConfigurationStorage& _storage;
     ESP8266WebServer _server{80};
 
     void registerRoutes();
@@ -26,6 +29,7 @@ private:
     void handleFeed();
     void handleStatus();
     void handleNotFound();
+    void handleUpdateConfig();
     void handleConfig();
 };
 
