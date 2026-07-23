@@ -4,9 +4,11 @@
 #include "WifiServices.h"
 #include "WebServer.h"
 #include "ConfigurationStorage.h"
+#include "TimeService.h"
 
 Motor motor;
 WiFiService wifi;
+TimeService timeService(wifi);
 ConfigurationStorage storage;
 WebServer webServer(motor, wifi, storage); 
 void setup()
@@ -21,12 +23,25 @@ void setup()
     motor.setStepsPerFeed(steps);
 
     wifi.begin(WIFI_SSID, WIFI_PASSWORD);
+    timeService.begin();
     webServer.begin();
 }
 
 void loop()
 {
-    motor.update();
     wifi.update();
+    timeService.update();
+    motor.update();
     webServer.update();
+    if(timeService.isTimeAvailable())
+    {
+        Serial.printf(
+            "%02d:%02d:%02d\n",
+            timeService.getHour(),
+            timeService.getMinute(),
+            timeService.getSecond()
+        );
+
+        delay(1000);
+    }
 }

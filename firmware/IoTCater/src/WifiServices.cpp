@@ -62,7 +62,8 @@ String WiFiService::getIpAddress() const
 
 bool WiFiService::isConnected() const
 {
-    return WiFi.status() == WL_CONNECTED;
+    Serial.println(WiFi.localIP());
+    return WiFi.status() == WL_CONNECTED; 
 }
 void WiFiService::printConnectionInfo()
 {
