@@ -3,13 +3,20 @@
 #include "WifiServices.h"
 #include "ConfigurationStorage.h"
 #include <ArduinoJson.h>
+#include "Scheduler.h"
 
-WebServer::WebServer(Motor& motor,
-                     WiFiService& wifi,
-                    ConfigurationStorage& storage)
-    : _motor(motor),
-      _wifi(wifi),
-      _storage(storage)
+WebServer::WebServer(
+    Motor& motor,
+    WiFiService& wifi,
+    Scheduler& scheduler,
+    Configuration& configuration,
+    ConfigurationStorage& storage)
+    :
+    _motor(motor),
+    _wifi(wifi),
+    _scheduler(scheduler),
+    _configuration(configuration),
+    _storage(storage)
 {
 }
 void WebServer::begin()
@@ -200,18 +207,18 @@ void WebServer::handleUpdateConfig()
         return;
     }
     
-    if (!_storage.saveStepsPerFeed(steps))
-    {
-        _server.send(
-            500,
-            "application/json",
-            R"({
-                "success": false,
-                "message": "Failed to save configuration"
-            })"
-        );
-        return;
-    }
+    // if (!_storage.saveStepsPerFeed(steps))
+    // {
+    //     _server.send(
+    //         500,
+    //         "application/json",
+    //         R"({
+    //             "success": false,
+    //             "message": "Failed to save configuration"
+    //         })"
+    //     );
+    //     return;
+    // }
     //Responder éxito
     _server.send(
         200,
@@ -224,7 +231,7 @@ void WebServer::handleUpdateConfig()
 }
 
 void WebServer::handleConfig(){
-    int configuracionActual = _motor.getStepsPerFeed();
+    int configuracionActual = _configuration.stepsPerFeed;
 
     String response = "{";
     response += "\"stepsPerFeed\": ";

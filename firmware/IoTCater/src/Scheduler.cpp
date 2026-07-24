@@ -52,6 +52,20 @@ bool Scheduler::setSchedule(
     return true;
 }
 
+bool Scheduler::configure(int hour, int minute)
+{
+    if (!isValidSchedule(hour, minute))
+    {
+        return false;
+    }
+
+    _scheduledHour = hour;
+    _scheduledMinute = minute;
+    _scheduleConfigured = true;
+
+    return true;
+}
+
 bool Scheduler::isScheduledTime() const
 {
     return _timeService.getHour() == _scheduledHour &&

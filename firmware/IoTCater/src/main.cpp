@@ -5,25 +5,37 @@
 #include "WebServer.h"
 #include "ConfigurationStorage.h"
 #include "TimeService.h"
+#include "Scheduler.h"
 
 Motor motor;
 WiFiService wifi;
 TimeService timeService(wifi);
+Scheduler scheduler(timeService, motor);
 ConfigurationStorage storage;
-WebServer webServer(motor, wifi, storage); 
+Configuration configuration;
+WebServer webServer(
+    motor,
+    wifi,
+    scheduler,
+    configuration,
+    storage); 
 void setup()
 {
     Serial.begin(115200);
-
     motor.begin();
-
     storage.begin();
 
-    int steps = storage.loadStepsPerFeed(1024);
-    motor.setStepsPerFeed(steps);
-
+    configuration = storage.loadConfiguration(Configuration{});
+    motor.setStepsPerFeed(configuration.stepsPerFeed);
+    scheduler.configure(configuration.scheduledHour,configuration.scheduledMinute);
+   
     wifi.begin(WIFI_SSID, WIFI_PASSWORD);
     timeService.begin();
+    scheduler.begin();
+    scheduler.setSchedule(
+        13,
+        40
+    );
     webServer.begin();
 }
 
@@ -31,17 +43,7 @@ void loop()
 {
     wifi.update();
     timeService.update();
+    scheduler.update();
     motor.update();
     webServer.update();
-    if(timeService.isTimeAvailable())
-    {
-        Serial.printf(
-            "%02d:%02d:%02d\n",
-            timeService.getHour(),
-            timeService.getMinute(),
-            timeService.getSecond()
-        );
-
-        delay(1000);
-    }
 }

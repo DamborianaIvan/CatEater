@@ -8,45 +8,36 @@ namespace
 }
 //EEPROM es UNO de los sitemas de almacenamiento que tiene nodemcu
 
-bool ConfigurationStorage::begin()
+void ConfigurationStorage::begin()
 {
     EEPROM.begin(512);
-    return true;
+    return;
 }
 
-bool ConfigurationStorage::saveStepsPerFeed(int steps)
-{
-    EEPROM.put(
-        SIGNATURE_ADDRESS,
-        CONFIG_SIGNATURE
-    );
 
-    EEPROM.put(
-        STEPS_PER_FEED_ADDRESS,
-        steps
-    );
+bool ConfigurationStorage::saveConfiguration(const Configuration& configuration)
+{
+    EEPROM.put(SIGNATURE_ADDRESS, CONFIG_SIGNATURE);
+    EEPROM.put(CONFIG_ADDRESS, configuration);
 
     return EEPROM.commit();
 }
 
-int ConfigurationStorage::loadStepsPerFeed(int defaultValue) const
+
+Configuration ConfigurationStorage::loadConfiguration(const Configuration& defaultConfiguration)
 {
     uint8_t signature = 0;
-    //Obtenemos la firma inicial para validar si le agregamos un step nosotros o esat inicializandose por primera vez
-    EEPROM.get(
-        SIGNATURE_ADDRESS,
-        signature
-    );
-    if(signature != CONFIG_SIGNATURE)
+
+    EEPROM.get(SIGNATURE_ADDRESS, signature);
+
+    if (signature != CONFIG_SIGNATURE)
     {
-        return defaultValue;
+        return defaultConfiguration;
     }
 
-    int steps;
+    Configuration configuration;
 
-    EEPROM.get(
-        STEPS_PER_FEED_ADDRESS,
-        steps
-    );
-    return steps;
+    EEPROM.get(CONFIG_ADDRESS, configuration);
+
+    return configuration;
 }

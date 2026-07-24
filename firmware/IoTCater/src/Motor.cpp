@@ -32,6 +32,8 @@ void Motor::begin()
 //Es la encargada de la logica para el funcionamiento de el motor
 bool Motor::feed(int portions)
 {
+    Serial.printf("feed(%d)\n", portions);
+    Serial.printf("stepsPerFeed = %d\n", _stepsPerFeed);
     if (_isFeeding)
     {
         Serial.println("El motor ya esta alimentando.");

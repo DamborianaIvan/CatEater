@@ -1,3 +1,7 @@
+#ifndef SCHEDULER_H
+#define SCHEDULER_H
+
+
 #include "TimeService.h"
 #include "Motor.h"
 
@@ -11,6 +15,7 @@ public:
     void update();
 
     bool setSchedule(int hour,int minute);
+    bool configure(int hour, int minute);
 
 private:
     TimeService& _timeService;
@@ -23,10 +28,10 @@ private:
     bool isValidSchedule( int hour, int minute) const;
     void markExecution();
 
-    static constexpr int DEFAULT_FEED_PORTIONS = 1;
-    
+    static constexpr int DEFAULT_FEED_PORTIONS = 1; 
     int _scheduledHour;
     int _scheduledMinute;
     int _lastExecutionHour;
     int _lastExecutionMinute;
 };
+#endif
