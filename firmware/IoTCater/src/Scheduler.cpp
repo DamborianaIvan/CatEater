@@ -39,6 +39,14 @@ bool Scheduler::setSchedule(
     _scheduledHour = hour;
     _scheduledMinute = minute;
 
+    //Aca estamos guardamos el valor en el struct que viene referenciado (revisar en .h)
+    _schedules[0].hour = hour;
+    _schedules[0].minute = minute;
+    _schedules[0].portions = DEFAULT_FEED_PORTIONS;
+    _schedules[0].enabled = true;
+
+    _scheduleConfigured = true;
+
     _scheduleConfigured = true;
     _executionRegistered = false;
     _lastExecutionHour = 0;
@@ -52,24 +60,27 @@ bool Scheduler::setSchedule(
     return true;
 }
 
-bool Scheduler::configure(int hour, int minute)
-{
-    if (!isValidSchedule(hour, minute))
-    {
-        return false;
-    }
+// bool Scheduler::configure(int hour, int minute)
+// {
+//     if (!isValidSchedule(hour, minute))
+//     {
+//         return false;
+//     }
 
-    _scheduledHour = hour;
-    _scheduledMinute = minute;
-    _scheduleConfigured = true;
+//     _scheduledHour = hour;
+//     _scheduledMinute = minute;
+//     _scheduleConfigured = true;
 
-    return true;
-}
+//     return true;
+// }
 
 bool Scheduler::isScheduledTime() const
 {
-    return _timeService.getHour() == _scheduledHour &&
-           _timeService.getMinute() == _scheduledMinute;
+    const FeedSchedule& schedule = _schedules[0];
+
+    return schedule.enabled &&
+        _timeService.getHour() == schedule.hour &&
+        _timeService.getMinute() == schedule.minute;
 }
 
 bool Scheduler::wasExecutedThisMinute() const

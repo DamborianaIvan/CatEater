@@ -4,14 +4,9 @@
 
 #include "TimeService.h"
 #include "Motor.h"
+#include "SchedulerConstants.h"
+#include "FeedSchedule.h"
 
-struct FeedSchedule
-{
-    uint8_t hour;
-    uint8_t minute;
-    uint8_t portions;
-    bool enabled;
-};
 
 class Scheduler
 {
@@ -23,11 +18,12 @@ public:
     void update();
 
     bool setSchedule(int hour,int minute);
-    bool configure(int hour, int minute);
+    // bool configure(int hour, int minute);
 
 private:
     TimeService& _timeService;
     Motor& _motor;
+    FeedSchedule _schedules[MAX_SCHEDULES];
 
     bool isScheduledTime() const;
     bool wasExecutedThisMinute() const;

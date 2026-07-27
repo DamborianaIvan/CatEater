@@ -27,7 +27,7 @@ void setup()
 
     configuration = storage.loadConfiguration(Configuration{});
     motor.setStepsPerFeed(configuration.stepsPerFeed);
-    scheduler.configure(configuration.scheduledHour,configuration.scheduledMinute);
+    
    
     wifi.begin(WIFI_SSID, WIFI_PASSWORD);
     timeService.begin();
