@@ -7,7 +7,6 @@ Scheduler::Scheduler(
     : _timeService(timeService),
       _motor(motor),
       _executionRegistered(false),
-      _scheduleConfigured(false),
       _lastExecutionHour(0),
       _lastExecutionMinute(0)
 {
