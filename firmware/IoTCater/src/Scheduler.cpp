@@ -8,8 +8,6 @@ Scheduler::Scheduler(
       _motor(motor),
       _executionRegistered(false),
       _scheduleConfigured(false),
-      _scheduledHour(0),
-      _scheduledMinute(0),
       _lastExecutionHour(0),
       _lastExecutionMinute(0)
 {
@@ -21,10 +19,7 @@ bool Scheduler::begin()
     return true;
 }
 
-bool Scheduler::setSchedule(
-    int hour,
-    int minute
-)
+bool Scheduler::setSchedule(int hour,int minute)
 {
     if (hour < 0 || hour > 23)
     {
@@ -36,18 +31,12 @@ bool Scheduler::setSchedule(
         return false;
     }
 
-    _scheduledHour = hour;
-    _scheduledMinute = minute;
-
     //Aca estamos guardamos el valor en el struct que viene referenciado (revisar en .h)
     _schedules[0].hour = hour;
     _schedules[0].minute = minute;
-    _schedules[0].portions = DEFAULT_FEED_PORTIONS;
+    _schedules[0].portions = 1;
     _schedules[0].enabled = true;
 
-    _scheduleConfigured = true;
-
-    _scheduleConfigured = true;
     _executionRegistered = false;
     _lastExecutionHour = 0;
     _lastExecutionMinute = 0;
@@ -60,27 +49,20 @@ bool Scheduler::setSchedule(
     return true;
 }
 
-// bool Scheduler::configure(int hour, int minute)
-// {
-//     if (!isValidSchedule(hour, minute))
-//     {
-//         return false;
-//     }
-
-//     _scheduledHour = hour;
-//     _scheduledMinute = minute;
-//     _scheduleConfigured = true;
-
-//     return true;
-// }
-
-bool Scheduler::isScheduledTime() const
+bool Scheduler::configure(int hour, int minute)
 {
-    const FeedSchedule& schedule = _schedules[0];
+    if (!isValidSchedule(hour, minute))
+    {
+        return false;
+    }
+        return setSchedule(hour, minute);
+}
 
+bool Scheduler::isScheduledTime(const FeedSchedule& schedule) const
+{
     return schedule.enabled &&
-        _timeService.getHour() == schedule.hour &&
-        _timeService.getMinute() == schedule.minute;
+           _timeService.getHour() == schedule.hour &&
+           _timeService.getMinute() == schedule.minute;
 }
 
 bool Scheduler::wasExecutedThisMinute() const
@@ -94,15 +76,29 @@ void Scheduler::markExecution()
     _lastExecutionHour = _timeService.getHour();
     _lastExecutionMinute = _timeService.getMinute();
 }
+
 bool Scheduler::isValidSchedule(int hour, int minute) const
 {
     return hour >= 0 && hour <= 23 &&
            minute >= 0 && minute <= 59;
 }
 
+bool Scheduler::hasEnabledSchedules() const
+{
+    for (const FeedSchedule& schedule : _schedules)
+    {
+        if (schedule.enabled)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 void Scheduler::update()
 {
-    if (!_scheduleConfigured)
+    if (!hasEnabledSchedules())
     {
         return;
     }
@@ -112,24 +108,37 @@ void Scheduler::update()
         return;
     }
 
-    if (!isScheduledTime())
-    {
-        return;
-    }
-
     if (wasExecutedThisMinute())
     {
         return;
     }
 
-    if (_motor.feed(DEFAULT_FEED_PORTIONS))
-    {   
-        markExecution();
-        _executionRegistered = true;
-        Serial.println("Alimentación programada ejecutada.");
-    }
-    else
+    for (uint8_t i = 0; i < MAX_SCHEDULES; ++i)
     {
-        Serial.println("No fue posible ejecutar la alimentación programada.");
+        const FeedSchedule& schedule = _schedules[i];
+
+        if (!isScheduledTime(schedule))
+        {
+            continue;
+        }
+
+        if (_motor.feed(schedule.portions))
+        {
+            markExecution();
+
+            Serial.printf(
+                "Alimentación programada ejecutada (Horario %u).\n",
+                i
+            );
+        }
+        else
+        {
+            Serial.printf(
+                "No fue posible ejecutar el horario %u.\n",
+                i
+            );
+        }
+
+        break;
     }
 }
