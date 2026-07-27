@@ -5,6 +5,14 @@
 #include "TimeService.h"
 #include "Motor.h"
 
+struct FeedSchedule
+{
+    uint8_t hour;
+    uint8_t minute;
+    uint8_t portions;
+    bool enabled;
+};
+
 class Scheduler
 {
 public:
