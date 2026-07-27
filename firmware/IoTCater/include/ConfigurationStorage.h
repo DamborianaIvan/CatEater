@@ -1,18 +1,8 @@
 #ifndef CONFIGURATION_STORAGE_H
 #define CONFIGURATION_STORAGE_H
-
+#include "Configuration.h"
 #include <EEPROM.h>
 
-struct Configuration
-{
-    static constexpr int DEFAULT_STEPS_PER_FEED = 2048;
-    static constexpr int DEFAULT_SCHEDULED_HOUR = 9;
-    static constexpr int DEFAULT_SCHEDULED_MINUTE = 0;
-
-    int stepsPerFeed = DEFAULT_STEPS_PER_FEED;
-    int scheduledHour = DEFAULT_SCHEDULED_HOUR;
-    int scheduledMinute = DEFAULT_SCHEDULED_MINUTE;
-};
 class ConfigurationStorage
 {
 public:
@@ -20,8 +10,7 @@ public:
 
     bool saveConfiguration(const Configuration& configuration);
 
-    Configuration loadConfiguration(
-        const Configuration& defaultConfiguration);
+    Configuration loadConfiguration(const Configuration& defaultConfiguration);
 
 private:
     static constexpr int EEPROM_SIZE = 512;

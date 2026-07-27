@@ -1,6 +1,6 @@
 #ifndef FEED_SCHEDULE_H
 #define FEED_SCHEDULE_H
-
+#include <Arduino.h>
 struct FeedSchedule
 {
     uint8_t hour = 0;
