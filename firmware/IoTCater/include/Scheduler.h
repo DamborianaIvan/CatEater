@@ -6,12 +6,13 @@
 #include "Motor.h"
 #include "SchedulerConstants.h"
 #include "FeedSchedule.h"
+#include "Configuration.h"
 
 
 class Scheduler
 {
 public:
-    Scheduler(TimeService& timeService, Motor& motor);
+    Scheduler(TimeService& timeService, Motor& motor, Configuration& configuation);
 
     bool begin();
 
@@ -23,7 +24,7 @@ public:
 private:
     TimeService& _timeService;
     Motor& _motor;
-    FeedSchedule _schedules[MAX_SCHEDULES];
+    Configuration& _configuration;
 
     bool isScheduledTime(const FeedSchedule& schedule) const;
     bool wasExecutedThisMinute() const;

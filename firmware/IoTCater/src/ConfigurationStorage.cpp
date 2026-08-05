@@ -12,7 +12,9 @@ void ConfigurationStorage::begin()
 
 bool ConfigurationStorage::saveConfiguration(const Configuration& configuration)
 {
+    EEPROM.put(SIGNATURE_ADDRESS, CONFIG_SIGNATURE);
     EEPROM.put(CONFIG_ADDRESS, configuration);
+
     return EEPROM.commit();
 }
 
@@ -24,7 +26,8 @@ Configuration ConfigurationStorage::loadConfiguration(const Configuration& defau
     EEPROM.get(SIGNATURE_ADDRESS, signature);
 
     if (signature != CONFIG_SIGNATURE)
-    {
+    {   
+        saveConfiguration(defaultConfiguration);
         return defaultConfiguration;
     }
 

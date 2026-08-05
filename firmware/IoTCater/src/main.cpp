@@ -6,13 +6,14 @@
 #include "ConfigurationStorage.h"
 #include "TimeService.h"
 #include "Scheduler.h"
+#include "Configuration.h"
 
 Motor motor;
 WiFiService wifi;
 TimeService timeService(wifi);
-Scheduler scheduler(timeService, motor);
-ConfigurationStorage storage;
 Configuration configuration;
+Scheduler scheduler(timeService, motor, configuration);
+ConfigurationStorage storage;
 WebServer webServer(
     motor,
     wifi,
@@ -34,7 +35,7 @@ void setup()
     scheduler.begin();
     scheduler.setSchedule(
         13,
-        40
+        36
     );
     webServer.begin();
 }

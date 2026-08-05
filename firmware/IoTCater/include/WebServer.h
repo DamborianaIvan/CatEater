@@ -35,7 +35,7 @@ private:
     void handleStatus();
     void handleNotFound();
     void handleUpdateConfig();
-    void handleConfig();
+    void handleGetConfiguration();
 };
 
 #endif

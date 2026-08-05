@@ -1,11 +1,14 @@
 #include "Scheduler.h"
 #include "Motor.h"
+#include "Configuration.h"
 Scheduler::Scheduler(
     TimeService& timeService,
-    Motor& motor
+    Motor& motor,
+    Configuration& configuration
 )
     : _timeService(timeService),
       _motor(motor),
+      _configuration(configuration),
       _executionRegistered(false),
       _lastExecutionHour(0),
       _lastExecutionMinute(0)
@@ -31,10 +34,10 @@ bool Scheduler::setSchedule(int hour,int minute)
     }
 
     //Aca estamos guardamos el valor en el struct que viene referenciado (revisar en .h)
-    _schedules[0].hour = hour;
-    _schedules[0].minute = minute;
-    _schedules[0].portions = 1;
-    _schedules[0].enabled = true;
+    _configuration.schedules[0].hour = hour;
+    _configuration.schedules[0].minute = minute;
+    _configuration.schedules[0].portions = 1;
+    _configuration.schedules[0].enabled = true;
 
     _executionRegistered = false;
     _lastExecutionHour = 0;
@@ -84,7 +87,7 @@ bool Scheduler::isValidSchedule(int hour, int minute) const
 
 bool Scheduler::hasEnabledSchedules() const
 {
-    for (const FeedSchedule& schedule : _schedules)
+    for (const FeedSchedule& schedule : _configuration.schedules)
     {
         if (schedule.enabled)
         {
@@ -114,7 +117,7 @@ void Scheduler::update()
 
     for (uint8_t i = 0; i < MAX_SCHEDULES; ++i)
     {
-        const FeedSchedule& schedule = _schedules[i];
+        const FeedSchedule& schedule = _configuration.schedules[i];
 
         if (!isScheduledTime(schedule))
         {

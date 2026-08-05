@@ -58,7 +58,7 @@ void WebServer::registerRoutes()
     });
 
     _server.on("/config", HTTP_GET, [this]() {
-        handleConfig();
+        handleGetConfiguration();
     });
 }   
 
@@ -207,19 +207,10 @@ void WebServer::handleUpdateConfig()
         return;
     }
     
-    // if (!_storage.saveStepsPerFeed(steps))
-    // {
-    //     _server.send(
-    //         500,
-    //         "application/json",
-    //         R"({
-    //             "success": false,
-    //             "message": "Failed to save configuration"
-    //         })"
-    //     );
-    //     return;
-    // }
+
     //Responder éxito
+    _configuration.stepsPerFeed = steps;
+    _storage.saveConfiguration(_configuration);
     _server.send(
         200,
         "application/json",
@@ -230,7 +221,7 @@ void WebServer::handleUpdateConfig()
     );
 }
 
-void WebServer::handleConfig(){
+void WebServer::handleGetConfiguration(){
     int configuracionActual = _configuration.stepsPerFeed;
 
     String response = "{";
