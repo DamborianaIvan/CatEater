@@ -26,7 +26,7 @@ void WiFiService::attemptConnection()
     {
         return;
     }
-    Serial.print("Conectando a ");
+    Serial.print("[WifiService] Conectando a: ");
     Serial.println(_ssid);
     WiFi.begin(_ssid, _password);
     _lastReconnectAttempt = millis();
@@ -46,7 +46,7 @@ void WiFiService::update()
 
     if (_state == ConnectionState::Connected)
     {
-        Serial.println("Conexion WiFi perdida.");
+        Serial.println("[WifiService] Conexion WiFi perdida.");
         _state = ConnectionState::Disconnected;
     }
     if (millis() - _lastReconnectAttempt >= RECONNECT_INTERVAL)
@@ -62,20 +62,21 @@ String WiFiService::getIpAddress() const
 
 bool WiFiService::isConnected() const
 {
+    Serial.print("[WifiService] ");
     Serial.println(WiFi.localIP());
     return WiFi.status() == WL_CONNECTED; 
 }
 void WiFiService::printConnectionInfo()
 {
     Serial.println();
-    Serial.println("WiFi conectado.");
-    Serial.print("SSID: ");
+    Serial.println("[WifiService] WiFi conectado.");
+    Serial.print("[WifiService] SSID: ");
     Serial.println(WiFi.SSID());
 
-    Serial.print("IP: ");
+    Serial.print("[WifiService] IP: ");
     Serial.println(WiFi.localIP());
 
-    Serial.print("RSSI: ");
+    Serial.print("[WifiService] RSSI: ");
     Serial.print(WiFi.RSSI());
     Serial.println(" dBm");
 

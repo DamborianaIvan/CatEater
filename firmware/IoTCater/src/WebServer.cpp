@@ -14,16 +14,17 @@ WebServer::WebServer(
     :
     _motor(motor),
     _wifi(wifi),
-    _scheduler(scheduler),
+    _storage(storage),
     _configuration(configuration),
-    _storage(storage)
+    _scheduler(scheduler)
 {
 }
+
 void WebServer::begin()
 {
     registerRoutes();
     _server.begin();
-    Serial.println("Servidor Web iniciado.");
+    Serial.println("[WebServer] Iniciado.");
 }
 
 void WebServer::update()
@@ -143,94 +144,203 @@ void WebServer::handleStatus()
 
 void WebServer::handleUpdateConfig()
 {
-    //Leer el body
     String body = _server.arg("plain");
 
-    //Parsear JSON
     JsonDocument doc;
     DeserializationError error = deserializeJson(doc, body);
 
     if (error)
     {
-        _server.send(
-            400,
-            "application/json",
+        _server.send(400, "application/json",
             R"({
                 "success": false,
                 "message": "Invalid JSON"
-            })"
-        );
+            })");
         return;
-    }
-
-    if (!doc.containsKey("stepsPerFeed"))
-    {
-        _server.send(
-            400,
-            "application/json",
-            R"({
-                "success": false,
-                "message": "Falta el campo"
-            })"
-        );
-        return;
-      
     }
 
     if (!doc["stepsPerFeed"].is<int>())
     {
-        _server.send(
-            400,
-            "application/json",
+        _server.send(400, "application/json",
             R"({
                 "success": false,
-                "message": "Campo invalido"
-            })"
-        );
+                "message": "Invalid stepsPerFeed"
+            })");
         return;
     }
 
-    //Obtener el dato
-    int steps = doc["stepsPerFeed"];
-
-    //Intentar actualizar el Motor
-    if (!_motor.setStepsPerFeed(steps))
+    if (!doc["schedules"].is<JsonArray>())
     {
-        _server.send(
-            400,
-            "application/json",
+        _server.send(400, "application/json",
             R"({
                 "success": false,
-                "message": "Invalid stepsPerPortion"
-            })"
-        );
+                "message": "Invalid schedules"
+            })");
         return;
     }
-    
 
-    //Responder éxito
-    _configuration.stepsPerFeed = steps;
-    _storage.saveConfiguration(_configuration);
-    _server.send(
-        200,
-        "application/json",
-        R"({
-            "success": true,
-            "message": "Configuration updated"
-        })"
-    );
+    JsonArray schedules = doc["schedules"].as<JsonArray>();
+
+    if (schedules.size() != MAX_SCHEDULES)
+    {
+        _server.send(400, "application/json",
+            R"({
+                "success": false,
+                "message": "Invalid schedules count"
+            })");
+        return;
+    }
+
+    Configuration newConfiguration = _configuration;
+
+    newConfiguration.stepsPerFeed = doc["stepsPerFeed"];
+
+    for (uint8_t i = 0; i < MAX_SCHEDULES; i++)
+    {
+        JsonObject schedule = schedules[i];
+
+        if (!schedule["hour"].is<int>() || !schedule["minute"].is<int>() || !schedule["portions"].is<int>() || !schedule["enabled"].is<bool>())
+        {
+            _server.send(400, "application/json",
+                R"({
+                    "success": false,
+                    "message": "Missing schedule fields"
+                })");
+            return;
+        }
+
+        int hour = schedule["hour"];
+        int minute = schedule["minute"];
+        int portions = schedule["portions"];
+        bool enabled = schedule["enabled"];
+
+        if (hour < 0 || hour > 23)
+        {
+            _server.send(400, "application/json",
+                R"({
+                    "success": false,
+                    "message": "Invalid hour"
+                })");
+            return;
+        }
+
+        if (minute < 0 || minute > 59)
+        {
+            _server.send(400, "application/json",
+                R"({
+                    "success": false,
+                    "message": "Invalid minute"
+                })");
+            return;
+        }
+
+        if (portions <= 0)
+        {
+            _server.send(400, "application/json",
+                R"({
+                    "success": false,
+                    "message": "Invalid portions"
+                })");
+            return;
+        }
+
+        newConfiguration.schedules[i].hour = hour;
+        newConfiguration.schedules[i].minute = minute;
+        newConfiguration.schedules[i].portions = portions;
+        newConfiguration.schedules[i].enabled = enabled;
+    }
+
+    //Validacion de horarios duplicados
+    for (uint8_t i = 0; i < MAX_SCHEDULES; ++i)
+    {
+        if (!newConfiguration.schedules[i].enabled)
+        {
+            continue;
+        }
+
+        for (uint8_t j = i + 1; j < MAX_SCHEDULES; ++j)
+        {
+            if (!newConfiguration.schedules[j].enabled)
+            {
+                continue;
+            }
+
+            if (newConfiguration.schedules[i].hour == newConfiguration.schedules[j].hour &&
+                newConfiguration.schedules[i].minute == newConfiguration.schedules[j].minute)
+            {
+                _server.send(
+                    400,
+                    "application/json",
+                    R"({
+                        "success": false,
+                        "message": "Duplicate schedules are not allowed"
+                    })");
+
+                return;
+            }
+        }
+    }
+
+    if (!_motor.setStepsPerFeed(newConfiguration.stepsPerFeed))
+    {
+        _server.send(400, "application/json",
+            R"({
+                "success": false,
+                "message": "Invalid stepsPerFeed"
+            })");
+        return;
+    }
+
+    _configuration = newConfiguration;
+
+    if (!_storage.saveConfiguration(_configuration))
+    {
+        _server.send(500, "application/json",
+            R"({
+                "success": false,
+                "message": "Failed to save configuration"
+            })");
+        return;
+    }
+
+    _server.send(200,
+                 "application/json",
+                 R"({
+                    "success": true,
+                    "message": "Configuration updated"
+                 })");
 }
 
-void WebServer::handleGetConfiguration(){
-    int configuracionActual = _configuration.stepsPerFeed;
+bool WebServer::isValidSchedule(int hour, int minute, int portions)const 
+{ 
+     return hour >= 0 && hour <= 23 &&
+           minute >= 0 && minute <= 59 &&
+           portions > 0;
+}
 
-    String response = "{";
-    response += "\"stepsPerFeed\": ";
-    response += configuracionActual;
-    response += "}";
+void WebServer::handleGetConfiguration()
+{
+    JsonDocument doc;
+
+    doc["stepsPerFeed"] = _configuration.stepsPerFeed;
+
+    JsonArray schedules = doc["schedules"].to<JsonArray>();
+
+    for (uint8_t i = 0; i < MAX_SCHEDULES; i++)
+    {
+        JsonObject schedule = schedules.add<JsonObject>();
+
+        schedule["hour"] = _configuration.schedules[i].hour;
+        schedule["minute"] = _configuration.schedules[i].minute;
+        schedule["portions"] = _configuration.schedules[i].portions;
+        schedule["enabled"] = _configuration.schedules[i].enabled;
+    }
+
+    String response;
+    serializeJson(doc, response);
+
     _server.send(
         200,
         "application/json",
         response);
-      
 }

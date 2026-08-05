@@ -19,7 +19,7 @@ public:
         Configuration& configuration,
         ConfigurationStorage& storage);
 
-    void begin();
+    void begin(); 
     void update();
 
 private:
@@ -29,6 +29,7 @@ private:
     ESP8266WebServer _server{80};
     Configuration& _configuration;
     Scheduler& _scheduler;
+    bool isValidSchedule(int hour, int minute, int portions) const;
     void registerRoutes();
     void handleHome();
     void handleFeed();

@@ -19,7 +19,6 @@ public:
     void update();
 
     bool setSchedule(int hour,int minute);
-    bool configure(int hour, int minute);
 
 private:
     TimeService& _timeService;

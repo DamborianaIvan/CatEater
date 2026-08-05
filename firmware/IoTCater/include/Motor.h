@@ -12,7 +12,7 @@ public:
     void begin();
     void update();
     
-    bool setStepsPerFeed(int steps);
+    bool setStepsPerFeed(int stepsPerFeed);
     bool isFeeding() const;
     bool feed(int portions=1);
     

@@ -33,10 +33,6 @@ void setup()
     wifi.begin(WIFI_SSID, WIFI_PASSWORD);
     timeService.begin();
     scheduler.begin();
-    scheduler.setSchedule(
-        13,
-        36
-    );
     webServer.begin();
 }
 

@@ -18,46 +18,46 @@ void Motor::update()
     if (_isFeeding && _stepper.distanceToGo() == 0)
     {
         _isFeeding = false;
-        Serial.println("Alimentacion finalizada.");
+        Serial.println("[Motor] Alimentacion finalizada.");
     }
 }
-//Inicializaciones 
+
 void Motor::begin()
 {
     _stepper.setMaxSpeed(300);
     _stepper.setAcceleration(200);
-    Serial.println("Motor inicializado");
+    Serial.println("[Motor] Inicializado");
 }
 
-//Es la encargada de la logica para el funcionamiento de el motor
+//logica para el funcionamiento de el motor
 bool Motor::feed(int portions)
 {
-    Serial.printf("feed(%d)\n", portions);
-    Serial.printf("stepsPerFeed = %d\n", _stepsPerFeed);
+    Serial.printf("[Motor] feed(%d)\n", portions);
+    Serial.printf("[Motor] stepsPerFeed = %d\n", _stepsPerFeed);
     if (_isFeeding)
     {
-        Serial.println("El motor ya esta alimentando.");
+        Serial.println("[Motor] El motor ya esta alimentando.");
         return false;
     }
     if (portions <= 0)
     {
-        Serial.println("Cantidad de porciones invalida.");
+        Serial.println("[Motor] Cantidad de porciones invalida.");
         return false;
     }
     //el static_cast es para decir que el valor no va a cambiar yt explicita la conversion a long
-    const long steps = static_cast<long>(_stepsPerFeed) * portions;
-    _stepper.move(steps);
+    const long stepsPerFeed = static_cast<long>(_stepsPerFeed) * portions;
+    _stepper.move(stepsPerFeed);
     _isFeeding = true;
     return true;
 }
-bool Motor::setStepsPerFeed(int steps)
+bool Motor::setStepsPerFeed(int stepsPerFeed)
 {
-    if (steps <= 0)
+    if (stepsPerFeed <= 0)
     {
         return false;
     }
 
-    _stepsPerFeed = steps;
+    _stepsPerFeed = stepsPerFeed;
     return true;
 }
 int Motor::getStepsPerFeed() const

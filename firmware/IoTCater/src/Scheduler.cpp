@@ -1,6 +1,4 @@
 #include "Scheduler.h"
-#include "Motor.h"
-#include "Configuration.h"
 Scheduler::Scheduler(
     TimeService& timeService,
     Motor& motor,
@@ -17,7 +15,7 @@ Scheduler::Scheduler(
 
 bool Scheduler::begin()
 {
-    Serial.println("Scheduler iniciado.");
+    Serial.println("[Scheduler] Iniciado.");
     return true;
 }
 
@@ -33,7 +31,6 @@ bool Scheduler::setSchedule(int hour,int minute)
         return false;
     }
 
-    //Aca estamos guardamos el valor en el struct que viene referenciado (revisar en .h)
     _configuration.schedules[0].hour = hour;
     _configuration.schedules[0].minute = minute;
     _configuration.schedules[0].portions = 1;
@@ -43,21 +40,11 @@ bool Scheduler::setSchedule(int hour,int minute)
     _lastExecutionHour = 0;
     _lastExecutionMinute = 0;
 
-    Serial.printf(
-    "Horario configurado: %02d:%02d\n",
+    Serial.printf("[Scheduler] Horario configurado: %02d:%02d\n",
     hour,
     minute
 );
     return true;
-}
-
-bool Scheduler::configure(int hour, int minute)
-{
-    if (!isValidSchedule(hour, minute))
-    {
-        return false;
-    }
-        return setSchedule(hour, minute);
 }
 
 bool Scheduler::isScheduledTime(const FeedSchedule& schedule) const
@@ -128,17 +115,11 @@ void Scheduler::update()
         {
             markExecution();
 
-            Serial.printf(
-                "Alimentación programada ejecutada (Horario %u).\n",
-                i
-            );
+            Serial.printf("[Scheduler] Alimentación programada ejecutada (Horario %u).\n",i);
         }
         else
         {
-            Serial.printf(
-                "No fue posible ejecutar el horario %u.\n",
-                i
-            );
+            Serial.printf("[Scheduler] No fue posible ejecutar el horario %u.\n",i);
         }
 
         break;

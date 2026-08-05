@@ -12,7 +12,7 @@ TimeService::TimeService(WiFiService& wifi)
 
 void TimeService::begin()
 {
-    Serial.println("TimeService inicializado.");
+    Serial.println("[TimeService] Inicializado.");
 }
 
 
@@ -32,7 +32,7 @@ void TimeService::update()
         
         initializeNtp();
         _ntpStarted = true;
-        Serial.println("NTP iniciado.");
+        Serial.println("[TimeService] NTP iniciado.");
     }
     time_t currentTime = time(nullptr);
 
@@ -43,9 +43,7 @@ void TimeService::update()
 
     _timeAvailable = true;
 
-    Serial.println("Hora sincronizada.");
-    Serial.print("TZ = ");
-    Serial.println(getenv("TZ"));
+    Serial.println("[TimeService] Hora sincronizada.");
 }
 
 void TimeService::initializeNtp(){
