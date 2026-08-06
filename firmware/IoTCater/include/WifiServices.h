@@ -19,6 +19,9 @@ public:
 
     bool isConnected() const;
     String getIpAddress() const;
+    String getMacAddress() const;
+
+    int getRssi() const;
 
 private:
     ConnectionState _state = ConnectionState::Disconnected;

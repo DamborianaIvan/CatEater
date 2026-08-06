@@ -62,10 +62,24 @@ String WiFiService::getIpAddress() const
 
 bool WiFiService::isConnected() const
 {
-    Serial.print("[WifiService] ");
-    Serial.println(WiFi.localIP());
     return WiFi.status() == WL_CONNECTED; 
 }
+
+String WiFiService::getMacAddress() const
+{
+    return WiFi.macAddress();
+}
+
+int WiFiService::getRssi() const
+{
+    if (!isConnected())
+    {
+        return 0;
+    }
+
+    return WiFi.RSSI();
+}
+
 void WiFiService::printConnectionInfo()
 {
     Serial.println();

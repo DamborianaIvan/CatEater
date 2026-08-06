@@ -7,6 +7,7 @@
 #include "TimeService.h"
 #include "Scheduler.h"
 #include "Configuration.h"
+#include "device/DeviceInfo.h"
 
 Motor motor;
 WiFiService wifi;
@@ -14,6 +15,7 @@ TimeService timeService(wifi);
 Configuration configuration;
 Scheduler scheduler(timeService, motor, configuration);
 ConfigurationStorage storage;
+DeviceInfo deviceInfo(wifi);
 WebServer webServer(
     motor,
     wifi,
@@ -22,6 +24,7 @@ WebServer webServer(
     storage); 
 void setup()
 {
+    delay(4000);
     Serial.begin(115200);
     motor.begin();
     storage.begin();
@@ -31,6 +34,10 @@ void setup()
     
    
     wifi.begin(WIFI_SSID, WIFI_PASSWORD);
+    
+    delay(1000);
+    deviceInfo.printBootInfo();
+   
     timeService.begin();
     scheduler.begin();
     webServer.begin();
