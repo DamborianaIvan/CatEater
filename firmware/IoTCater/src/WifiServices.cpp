@@ -26,8 +26,9 @@ void WiFiService::attemptConnection()
     {
         return;
     }
-    Serial.print("[WifiService] Conectando a: ");
-    Serial.println(_ssid);
+    Serial.print("[WifiService] Conectando a ");
+    Serial.print(_ssid);
+    Serial.println("...");
     WiFi.begin(_ssid, _password);
     _lastReconnectAttempt = millis();
 }

@@ -8,10 +8,12 @@
 #include "Scheduler.h"
 #include "Configuration.h"
 #include "device/DeviceInfo.h"
+#include "network/HttpClient.h"
 
 Motor motor;
 WiFiService wifi;
 TimeService timeService(wifi);
+HttpClient httpClient;
 Configuration configuration;
 Scheduler scheduler(timeService, motor, configuration);
 ConfigurationStorage storage;
@@ -24,7 +26,6 @@ WebServer webServer(
     storage); 
 void setup()
 {
-    delay(4000);
     Serial.begin(115200);
     motor.begin();
     storage.begin();
@@ -34,10 +35,7 @@ void setup()
     
    
     wifi.begin(WIFI_SSID, WIFI_PASSWORD);
-    
-    delay(1000);
-    deviceInfo.printBootInfo();
-   
+
     timeService.begin();
     scheduler.begin();
     webServer.begin();
@@ -45,7 +43,19 @@ void setup()
 
 void loop()
 {
+    static bool tested = false;
     wifi.update();
+    if (wifi.isConnected() && !tested)
+    {
+        tested = true;
+        deviceInfo.printBootInfo();
+
+        HttpResponse response = httpClient.get("https://httpbin.org/get");
+        Serial.println("--------------PruebaHTTP--------------"); 
+        Serial.println(response.success); 
+        Serial.println(response.statusCode); 
+        Serial.println(response.body);
+    }
     timeService.update();
     scheduler.update();
     motor.update();
