@@ -5,14 +5,14 @@
 
 class ConfigurationStorage
 {
-public:
+   public:
     void begin();
 
     bool saveConfiguration(const Configuration& configuration);
 
     Configuration loadConfiguration(const Configuration& defaultConfiguration);
 
-private:
+   private:
     static constexpr int EEPROM_SIZE = 512;
 
     static constexpr int SIGNATURE_ADDRESS = 0;

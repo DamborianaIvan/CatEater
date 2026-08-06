@@ -8,21 +8,16 @@
 #include "ConfigurationStorage.h"
 #include "Scheduler.h"
 
-
 class WebServer
 {
-public:
-    explicit WebServer(
-        Motor& motor,
-        WiFiService& wifi,
-        Scheduler& scheduler,
-        Configuration& configuration,
-        ConfigurationStorage& storage);
+   public:
+    explicit WebServer(Motor& motor, WiFiService& wifi, Scheduler& scheduler,
+                       Configuration& configuration, ConfigurationStorage& storage);
 
-    void begin(); 
+    void begin();
     void update();
 
-private:
+   private:
     Motor& _motor;
     WiFiService& _wifi;
     ConfigurationStorage& _storage;

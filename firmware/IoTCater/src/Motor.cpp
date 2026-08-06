@@ -1,17 +1,10 @@
 #include "Motor.h"
 
 Motor::Motor()
-        :_stepper(
-        AccelStepper::FULL4WIRE,
-        PIN_IN1,
-        PIN_IN3,
-        PIN_IN2,
-        PIN_IN4)
-        
-{
-}
-;
-//Esta funcion es la encargada de hacer que el motor avance. La linea .run hace que avance.
+    : _stepper(AccelStepper::FULL4WIRE, PIN_IN1, PIN_IN3, PIN_IN2, PIN_IN4)
+
+{};
+// Esta funcion es la encargada de hacer que el motor avance. La linea .run hace que avance.
 void Motor::update()
 {
     _stepper.run();
@@ -29,7 +22,7 @@ void Motor::begin()
     Serial.println("[Motor] Inicializado");
 }
 
-//logica para el funcionamiento de el motor
+// logica para el funcionamiento de el motor
 bool Motor::feed(int portions)
 {
     Serial.printf("[Motor] feed(%d)\n", portions);
@@ -44,7 +37,7 @@ bool Motor::feed(int portions)
         Serial.println("[Motor] Cantidad de porciones invalida.");
         return false;
     }
-    //el static_cast es para decir que el valor no va a cambiar yt explicita la conversion a long
+    // el static_cast es para decir que el valor no va a cambiar yt explicita la conversion a long
     const long stepsPerFeed = static_cast<long>(_stepsPerFeed) * portions;
     _stepper.move(stepsPerFeed);
     _isFeeding = true;

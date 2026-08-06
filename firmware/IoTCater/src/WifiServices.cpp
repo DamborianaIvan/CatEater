@@ -2,9 +2,7 @@
 #include "WifiServices.h"
 #include <ESP8266WiFi.h>
 
-WiFiService::WiFiService()
-{
-}
+WiFiService::WiFiService() {}
 
 void WiFiService::begin(const char* ssid, const char* password)
 {
@@ -63,7 +61,7 @@ String WiFiService::getIpAddress() const
 
 bool WiFiService::isConnected() const
 {
-    return WiFi.status() == WL_CONNECTED; 
+    return WiFi.status() == WL_CONNECTED;
 }
 
 String WiFiService::getMacAddress() const

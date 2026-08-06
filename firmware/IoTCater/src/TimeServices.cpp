@@ -3,10 +3,7 @@
 #include <Arduino.h>
 #include <time.h>
 
-TimeService::TimeService(WiFiService& wifi)
-    : _wifi(wifi),
-      _timeAvailable(false),
-      _ntpStarted(false)
+TimeService::TimeService(WiFiService& wifi) : _wifi(wifi), _timeAvailable(false), _ntpStarted(false)
 {
 }
 
@@ -15,11 +12,9 @@ void TimeService::begin()
     Serial.println("[TimeService] Inicializado.");
 }
 
-
-
 void TimeService::update()
 {
-     if (_timeAvailable)
+    if (_timeAvailable)
     {
         return;
     }
@@ -29,7 +24,6 @@ void TimeService::update()
     }
     if (!_ntpStarted)
     {
-        
         initializeNtp();
         _ntpStarted = true;
         Serial.println("[TimeService] NTP iniciado.");
@@ -46,13 +40,9 @@ void TimeService::update()
     Serial.println("[TimeService] Hora sincronizada.");
 }
 
-void TimeService::initializeNtp(){
-        configTime(
-            ARGENTINA_UTC_OFFSET,
-            0,
-            "pool.ntp.org",
-            "time.nist.gov"
-        );
+void TimeService::initializeNtp()
+{
+    configTime(ARGENTINA_UTC_OFFSET, 0, "pool.ntp.org", "time.nist.gov");
 }
 bool TimeService::isTimeAvailable() const
 {
@@ -67,7 +57,7 @@ bool TimeService::getLocalTime(tm& timeInfo) const
     }
 
     time_t currentTime = time(nullptr);
-    
+
     localtime_r(&currentTime, &timeInfo);
 
     return true;

@@ -1,7 +1,6 @@
 #include "Configuration.h"
 
-Configuration::Configuration()
-    : stepsPerFeed(DEFAULT_STEPS_PER_FEED)
+Configuration::Configuration() : stepsPerFeed(DEFAULT_STEPS_PER_FEED)
 {
     initializeDefaultSchedules();
 }

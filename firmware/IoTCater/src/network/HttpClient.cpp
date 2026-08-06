@@ -5,19 +5,20 @@ HttpClient::HttpClient()
     _client.setInsecure();
 }
 
-HttpResponse HttpClient::get(
-    const String& url,
-    const HttpHeaders& headers)
+HttpResponse HttpClient::get(const String& url, const HttpHeaders& headers)
 {
-    return executeRequest(
-        url,
-        HttpMethod::Get,
-        headers);
+    return executeRequest(url, HttpMethod::Get, "", headers);
 }
 
-HttpResponse HttpClient::executeRequest(const String& url, HttpMethod method, const HttpHeaders& headers)
+HttpResponse HttpClient::post(const String& url, const String& body, HttpHeaders headers)
+{
+    return executeRequest(url, HttpMethod::Post, body, headers);
+}
+HttpResponse HttpClient::executeRequest(const String& url, HttpMethod method, const String& body,
+                                        const HttpHeaders& headers)
 {
     HttpResponse response;
+
     HTTPClient http;
 
     if (!http.begin(_client, url))
@@ -36,6 +37,10 @@ HttpResponse HttpClient::executeRequest(const String& url, HttpMethod method, co
     {
         case HttpMethod::Get:
             response.statusCode = http.GET();
+            break;
+
+        case HttpMethod::Post:
+            response.statusCode = http.POST(body);
             break;
 
         default:

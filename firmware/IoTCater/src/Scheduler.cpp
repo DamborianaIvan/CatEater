@@ -1,9 +1,5 @@
 #include "Scheduler.h"
-Scheduler::Scheduler(
-    TimeService& timeService,
-    Motor& motor,
-    Configuration& configuration
-)
+Scheduler::Scheduler(TimeService& timeService, Motor& motor, Configuration& configuration)
     : _timeService(timeService),
       _motor(motor),
       _configuration(configuration),
@@ -19,7 +15,7 @@ bool Scheduler::begin()
     return true;
 }
 
-bool Scheduler::setSchedule(int hour,int minute)
+bool Scheduler::setSchedule(int hour, int minute)
 {
     if (hour < 0 || hour > 23)
     {
@@ -40,17 +36,13 @@ bool Scheduler::setSchedule(int hour,int minute)
     _lastExecutionHour = 0;
     _lastExecutionMinute = 0;
 
-    Serial.printf("[Scheduler] Horario configurado: %02d:%02d\n",
-    hour,
-    minute
-);
+    Serial.printf("[Scheduler] Horario configurado: %02d:%02d\n", hour, minute);
     return true;
 }
 
 bool Scheduler::isScheduledTime(const FeedSchedule& schedule) const
 {
-    return schedule.enabled &&
-           _timeService.getHour() == schedule.hour &&
+    return schedule.enabled && _timeService.getHour() == schedule.hour &&
            _timeService.getMinute() == schedule.minute;
 }
 
@@ -68,8 +60,7 @@ void Scheduler::markExecution()
 
 bool Scheduler::isValidSchedule(int hour, int minute) const
 {
-    return hour >= 0 && hour <= 23 &&
-           minute >= 0 && minute <= 59;
+    return hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59;
 }
 
 bool Scheduler::hasEnabledSchedules() const
@@ -115,11 +106,11 @@ void Scheduler::update()
         {
             markExecution();
 
-            Serial.printf("[Scheduler] Alimentación programada ejecutada (Horario %u).\n",i);
+            Serial.printf("[Scheduler] Alimentación programada ejecutada (Horario %u).\n", i);
         }
         else
         {
-            Serial.printf("[Scheduler] No fue posible ejecutar el horario %u.\n",i);
+            Serial.printf("[Scheduler] No fue posible ejecutar el horario %u.\n", i);
         }
 
         break;

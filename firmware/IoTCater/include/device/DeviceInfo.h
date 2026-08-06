@@ -4,7 +4,7 @@
 #include "WifiServices.h"
 class DeviceInfo
 {
-public:
+   public:
     explicit DeviceInfo(const WiFiService& wifi);
 
     String getDeviceId() const;
@@ -20,6 +20,7 @@ public:
     int getRssi() const;
 
     uint32_t getFreeHeap() const;
-private:
+
+   private:
     const WiFiService& _wifi;
 };

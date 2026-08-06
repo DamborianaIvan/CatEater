@@ -10,12 +10,13 @@ struct Configuration
     static constexpr uint8_t DEFAULT_FEED_PORTIONS = 1;
     static constexpr uint8_t DEFAULT_SCHEDULE_HOUR = 9;
     static constexpr uint8_t DEFAULT_SCHEDULE_MINUTE = 0;
-    Configuration(); 
+    Configuration();
 
     int stepsPerFeed;
 
     FeedSchedule schedules[MAX_SCHEDULES];
-private:
+
+   private:
     void initializeDefaultSchedules();
 };
 

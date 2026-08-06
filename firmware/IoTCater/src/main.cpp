@@ -18,12 +18,7 @@ Configuration configuration;
 Scheduler scheduler(timeService, motor, configuration);
 ConfigurationStorage storage;
 DeviceInfo deviceInfo(wifi);
-WebServer webServer(
-    motor,
-    wifi,
-    scheduler,
-    configuration,
-    storage); 
+WebServer webServer(motor, wifi, scheduler, configuration, storage);
 void setup()
 {
     Serial.begin(115200);
@@ -32,8 +27,7 @@ void setup()
 
     configuration = storage.loadConfiguration(Configuration{});
     motor.setStepsPerFeed(configuration.stepsPerFeed);
-    
-   
+
     wifi.begin(WIFI_SSID, WIFI_PASSWORD);
 
     timeService.begin();
@@ -43,18 +37,12 @@ void setup()
 
 void loop()
 {
-    static bool tested = false;
+    static bool bootInfoPrinted = false;
     wifi.update();
-    if (wifi.isConnected() && !tested)
+    if (wifi.isConnected() && !bootInfoPrinted)
     {
-        tested = true;
+        bootInfoPrinted = true;
         deviceInfo.printBootInfo();
-
-        HttpResponse response = httpClient.get("https://httpbin.org/get");
-        Serial.println("--------------PruebaHTTP--------------"); 
-        Serial.println(response.success); 
-        Serial.println(response.statusCode); 
-        Serial.println(response.body);
     }
     timeService.update();
     scheduler.update();

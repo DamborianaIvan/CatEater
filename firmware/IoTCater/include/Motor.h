@@ -6,20 +6,19 @@
 
 class Motor
 {
-public:
+   public:
     Motor();
 
     void begin();
     void update();
-    
+
     bool setStepsPerFeed(int stepsPerFeed);
     bool isFeeding() const;
-    bool feed(int portions=1);
-    
+    bool feed(int portions = 1);
+
     int getStepsPerFeed() const;
 
-    
-private:
+   private:
     bool _isFeeding = false;
     int _stepsPerFeed;
     static const uint8_t PIN_IN1 = D1;

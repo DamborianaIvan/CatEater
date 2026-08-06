@@ -2,10 +2,7 @@
 #include <ESP8266WiFi.h>
 #include "device/Firmware.h"
 
-DeviceInfo::DeviceInfo(const WiFiService& wifi)
-    : _wifi(wifi)
-{
-}
+DeviceInfo::DeviceInfo(const WiFiService& wifi) : _wifi(wifi) {}
 
 String DeviceInfo::getDeviceId() const
 {

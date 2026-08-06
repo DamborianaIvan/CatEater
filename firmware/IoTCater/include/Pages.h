@@ -1,7 +1,6 @@
 #ifndef PAGE_H
 #define PAGE_H
 
-
 constexpr char HOME_PAGE[] = R"rawliteral(
 <!DOCTYPE html>
 

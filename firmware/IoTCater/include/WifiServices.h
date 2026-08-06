@@ -3,15 +3,15 @@
 #include <Arduino.h>
 
 enum class ConnectionState
-    {
-        Disconnected,
-        Connecting,
-        Connected
-    };
+{
+    Disconnected,
+    Connecting,
+    Connected
+};
 
 class WiFiService
 {
-public:
+   public:
     WiFiService();
 
     void begin(const char* ssid, const char* password);
@@ -23,7 +23,7 @@ public:
 
     int getRssi() const;
 
-private:
+   private:
     ConnectionState _state = ConnectionState::Disconnected;
 
     const char* _ssid = nullptr;

@@ -1,14 +1,12 @@
 #include "ConfigurationStorage.h"
 #include <EEPROM.h>
 
-
-//EEPROM es UNO de los sitemas de almacenamiento que tiene nodemcu
+// EEPROM es UNO de los sitemas de almacenamiento que tiene nodemcu
 
 void ConfigurationStorage::begin()
 {
     EEPROM.begin(EEPROM_SIZE);
 }
-
 
 bool ConfigurationStorage::saveConfiguration(const Configuration& configuration)
 {
@@ -18,7 +16,6 @@ bool ConfigurationStorage::saveConfiguration(const Configuration& configuration)
     return EEPROM.commit();
 }
 
-
 Configuration ConfigurationStorage::loadConfiguration(const Configuration& defaultConfiguration)
 {
     uint8_t signature = 0;
@@ -26,7 +23,7 @@ Configuration ConfigurationStorage::loadConfiguration(const Configuration& defau
     EEPROM.get(SIGNATURE_ADDRESS, signature);
 
     if (signature != CONFIG_SIGNATURE)
-    {   
+    {
         saveConfiguration(defaultConfiguration);
         return defaultConfiguration;
     }
