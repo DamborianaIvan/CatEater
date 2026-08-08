@@ -2,7 +2,7 @@
 
 HttpClient::HttpClient()
 {
-    _client.setInsecure();
+    _secureClient.setInsecure();
 }
 
 HttpResponse HttpClient::get(const String& url, const HttpHeaders& headers)
@@ -21,7 +21,22 @@ HttpResponse HttpClient::executeRequest(const String& url, HttpMethod method, co
 
     HTTPClient http;
 
-    if (!http.begin(_client, url))
+    bool started = false;
+
+    Serial.print("[HttpClient] -> ");
+    Serial.println(url);
+    if (url.startsWith("https://"))
+    {
+        Serial.println("[HttpClient] Protocol: HTTPS");
+        started = http.begin(_secureClient, url);
+    }
+    else
+    {
+        Serial.println("[HttpClient] Protocol: HTTP");
+        started = http.begin(_client, url);
+    }
+
+    if (!started)
     {
         return response;
     }
@@ -41,6 +56,8 @@ HttpResponse HttpClient::executeRequest(const String& url, HttpMethod method, co
 
         case HttpMethod::Post:
             response.statusCode = http.POST(body);
+            Serial.print("HTTP Error: ");
+            Serial.println(http.errorToString(response.statusCode));
             break;
 
         default:

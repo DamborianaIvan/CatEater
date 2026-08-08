@@ -2,6 +2,8 @@
 
 #include <Arduino.h>
 #include <ESP8266HTTPClient.h>
+#include <ESP8266WiFi.h>
+#include <WiFiClient.h>
 #include <WiFiClientSecureBearSSL.h>
 
 #include "network/HttpHeaders.h"
@@ -19,7 +21,8 @@ class HttpClient
    private:
     static constexpr uint16_t DEFAULT_TIMEOUT_MS = 5000;
     static constexpr char CONTENT_TYPE_JSON[] = "application/json";
-    BearSSL::WiFiClientSecure _client;
+    WiFiClient _client;
+    BearSSL::WiFiClientSecure _secureClient;
 
     HttpResponse executeRequest(const String& url, HttpMethod method, const String& body,
                                 const HttpHeaders& headers);
