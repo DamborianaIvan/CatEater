@@ -20,7 +20,7 @@ class HttpClient
 
    private:
     static constexpr uint16_t DEFAULT_TIMEOUT_MS = 5000;
-    static constexpr char CONTENT_TYPE_JSON[] = "application/json";
+
     WiFiClient _client;
     BearSSL::WiFiClientSecure _secureClient;
 
