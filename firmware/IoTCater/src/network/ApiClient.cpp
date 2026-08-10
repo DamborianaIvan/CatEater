@@ -25,7 +25,7 @@ String ApiClient::buildRegistrationBody() const
     return json;
 }
 
-bool ApiClient::registerDevice()
+RegistrationResult ApiClient::registerDevice()
 {
     String body = buildRegistrationBody();
 
@@ -33,18 +33,32 @@ bool ApiClient::registerDevice()
 
     headers.emplace_back("x-api-key", API_KEY);
     headers.emplace_back("Content-Type", CONTENT_TYPE);
+
     HttpResponse response = _httpClient.post(buildUrl(REGISTER_ENDPOINT), body, headers);
 
-    Serial.println("========== Register Device ==========");
-    Serial.print("Status: ");
-    Serial.println(response.statusCode);
+    if (!response.success)
+    {
+        return RegistrationResult::ConnectionError;
+    }
 
-    Serial.println();
+    switch (response.statusCode)
+    {
+        case 201:
+            return RegistrationResult::Registered;
 
-    Serial.println("Response:");
-    Serial.println(response.body);
+        case 409:
+            return RegistrationResult::AlreadyRegistered;
 
-    Serial.println("=====================================");
+        case 401:
+            return RegistrationResult::Unauthorized;
 
-    return true;
+        case 400:
+            return RegistrationResult::InvalidData;
+
+        case 500:
+            return RegistrationResult::ServerError;
+
+        default:
+            return RegistrationResult::ServerError;
+    }
 }

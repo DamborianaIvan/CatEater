@@ -56,8 +56,6 @@ HttpResponse HttpClient::executeRequest(const String& url, HttpMethod method, co
 
         case HttpMethod::Post:
             response.statusCode = http.POST(body);
-            Serial.print("HTTP Error: ");
-            Serial.println(http.errorToString(response.statusCode));
             break;
 
         default:

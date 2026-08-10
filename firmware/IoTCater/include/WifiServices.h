@@ -20,6 +20,7 @@ class WiFiService
     bool isConnected() const;
     String getIpAddress() const;
     String getMacAddress() const;
+    ConnectionState getConnectionState() const;
 
     int getRssi() const;
 

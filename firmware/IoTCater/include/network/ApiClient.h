@@ -5,17 +5,27 @@
 #include "device/DeviceInfo.h"
 #include "network/HttpClient.h"
 
+enum class RegistrationResult
+{
+    Registered,
+    AlreadyRegistered,
+    Unauthorized,
+    InvalidData,
+    ServerError,
+    ConnectionError
+};
+
 class ApiClient
 {
    public:
     ApiClient(HttpClient& httpClient, const DeviceInfo& deviceInfo);
 
-    String buildRegistrationBody() const;
-    bool registerDevice();
+    RegistrationResult registerDevice();
 
    private:
     HttpClient& _httpClient;
     const DeviceInfo& _deviceInfo;
+
     static constexpr char CONTENT_TYPE[] = "application/json";
     static constexpr char API_KEY[] = "ExCECoLysoco";
     static constexpr char BASE_URL[] = "http://192.168.1.34:5000";
@@ -23,4 +33,5 @@ class ApiClient
     static constexpr char REGISTER_ENDPOINT[] = "/feeders/register";
 
     String buildUrl(const String& endpoint) const;
+    String buildRegistrationBody() const;
 };

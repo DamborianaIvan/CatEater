@@ -95,3 +95,8 @@ void WiFiService::printConnectionInfo()
 
     Serial.println();
 }
+
+ConnectionState WiFiService::getConnectionState() const
+{
+    return _state;
+}

@@ -21,6 +21,55 @@ ConfigurationStorage storage;
 DeviceInfo deviceInfo(wifi);
 ApiClient apiClient(httpClient, deviceInfo);
 WebServer webServer(motor, wifi, scheduler, configuration, storage);
+
+void handleWifiConnected()
+{
+    deviceInfo.printBootInfo();
+
+    RegistrationResult result = apiClient.registerDevice();
+
+    switch (result)
+    {
+        case RegistrationResult::Registered:
+            Serial.println("[ApiClient] Dispositivo registrado correctamente.");
+            break;
+
+        case RegistrationResult::AlreadyRegistered:
+            Serial.println("[ApiClient] Dispositivo ya registrado.");
+            break;
+
+        case RegistrationResult::Unauthorized:
+            Serial.println("[ApiClient] Error de autenticacion.");
+            break;
+
+        case RegistrationResult::InvalidData:
+            Serial.println("[ApiClient] Datos de registro invalidos.");
+            break;
+
+        case RegistrationResult::ServerError:
+            Serial.println("[ApiClient] Error del servidor.");
+            break;
+
+        case RegistrationResult::ConnectionError:
+            Serial.println("[ApiClient] Error de conexion.");
+            break;
+    }
+}
+
+bool hasWifiJustConnected()
+{
+    static ConnectionState previousState = ConnectionState::Disconnected;
+
+    ConnectionState currentState = wifi.getConnectionState();
+
+    bool connected =
+        currentState == ConnectionState::Connected && previousState != ConnectionState::Connected;
+
+    previousState = currentState;
+
+    return connected;
+}
+
 void setup()
 {
     Serial.begin(115200);
@@ -39,13 +88,10 @@ void setup()
 
 void loop()
 {
-    static bool bootInfoPrinted = false;
     wifi.update();
-    if (wifi.isConnected() && !bootInfoPrinted)
+    if (hasWifiJustConnected())
     {
-        bootInfoPrinted = true;
-        deviceInfo.printBootInfo();
-        apiClient.registerDevice();
+        handleWifiConnected();
     }
     timeService.update();
     scheduler.update();
