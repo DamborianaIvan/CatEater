@@ -11,6 +11,7 @@ String ApiClient::buildUrl(const String& endpoint) const
 {
     return String(BASE_URL) + endpoint;
 }
+
 String ApiClient::buildRegistrationBody() const
 {
     JsonDocument document;
@@ -23,6 +24,70 @@ String ApiClient::buildRegistrationBody() const
     serializeJson(document, json);
 
     return json;
+}
+
+bool ApiClient::getFeederInfo(FeederInfo& feederInfo)
+{
+    String endpoint = String("/feeders/global/") + _deviceInfo.getDeviceId();
+
+    HttpHeaders headers;
+
+    headers.emplace_back("x-api-key", API_KEY);
+
+    HttpResponse response = _httpClient.get(buildUrl(endpoint), headers);
+
+    if (!response.success || response.statusCode != 200)
+    {
+        return false;
+    }
+
+    JsonDocument document;
+
+    DeserializationError error = deserializeJson(document, response.body);
+
+    if (error)
+    {
+        return false;
+    }
+
+    feederInfo.feederQuantity = document["feederQuantity"] | 0;
+
+    feederInfo.feederName = document["feederName"] | "";
+
+    feederInfo.feederLogo = document["feederLogo"] | "";
+
+    feederInfo.lastConnection = document["lastConection"] | "";
+
+    return true;
+}
+
+bool ApiClient::getMotorState(bool& motorState)
+{
+    String endpoint = String("/feeder/motor-state/") + _deviceInfo.getDeviceId();
+
+    HttpHeaders headers;
+
+    headers.emplace_back("x-api-key", API_KEY);
+
+    HttpResponse response = _httpClient.get(buildUrl(endpoint), headers);
+
+    if (!response.success || response.statusCode != 200)
+    {
+        return false;
+    }
+
+    JsonDocument document;
+
+    DeserializationError error = deserializeJson(document, response.body);
+
+    if (error)
+    {
+        return false;
+    }
+
+    motorState = document["motorState"] | false;
+
+    return true;
 }
 
 RegistrationResult ApiClient::registerDevice()
