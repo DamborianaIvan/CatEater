@@ -332,15 +332,15 @@ const startMotor = async (req, res)=>{
       return res.status(404).json({ message: "Feeder no encontrado" });
     }
 
-    // Validar si el comedero tiene un userId asignado
-    if (!existingFeeder.userId) {
-      return res.status(403).json({ message: "Este comedero no está asignado a ningún usuario" });
-    }
+    // // Validar si el comedero tiene un userId asignado
+    // if (!existingFeeder.userId) {
+    //   return res.status(403).json({ message: "Este comedero no está asignado a ningún usuario" });
+    // }
 
-    // Verificar si el feeder le pertenece al usuario que lo quiere encender
-    if (existingFeeder.userId.toString() !== userId) {
-      return res.status(403).json({ message: "Este comedero no te pertenece" });
-    }
+    // // Verificar si el feeder le pertenece al usuario que lo quiere encender
+    // if (existingFeeder.userId.toString() !== userId) {
+    //   return res.status(403).json({ message: "Este comedero no te pertenece" });
+    // }
     
     // Verificar si ya está encendido
     if (existingFeeder.motorInfo?.motorState === true) {

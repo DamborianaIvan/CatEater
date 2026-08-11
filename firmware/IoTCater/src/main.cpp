@@ -10,6 +10,7 @@
 #include "device/DeviceInfo.h"
 #include "network/HttpClient.h"
 #include "network/ApiClient.h"
+#include "services/RemoteStateService.h"
 
 Motor motor;
 WiFiService wifi;
@@ -20,6 +21,7 @@ Scheduler scheduler(timeService, motor, configuration);
 ConfigurationStorage storage;
 DeviceInfo deviceInfo(wifi);
 ApiClient apiClient(httpClient, deviceInfo);
+RemoteStateService remoteStateService(apiClient, motor);
 WebServer webServer(motor, wifi, scheduler, configuration, storage);
 
 void handleWifiConnected()
@@ -96,5 +98,6 @@ void loop()
     timeService.update();
     scheduler.update();
     motor.update();
+    remoteStateService.update();
     webServer.update();
 }
