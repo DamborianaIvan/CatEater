@@ -565,7 +565,7 @@ router.post('/feeder/start', verifyToken,feederController.startMotor);
  *               message: "Error interno al desasignar el feeder"
  *               error: "Detalle del error"
  */
-router.post('/feeder/stop', verifyToken, feederController.stopMotor);
+router.post('/feeder/complete',feederController.completeMotor);
 
 //Frenar motor desde NODEMCU
 //router.post('/feeder/end', verifyToken, feederController.stopMotorFromNodemcu);

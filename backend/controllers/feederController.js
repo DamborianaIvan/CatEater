@@ -321,7 +321,7 @@ const unassignFeeder = async (req, res) => {
 
 //Encender motor
 const startMotor = async (req, res)=>{
-  const {feederId} = req.body;
+  const { feederId, portions = 1 } = req.body;
   const userId = req.user._id;
 
   try{
@@ -332,6 +332,11 @@ const startMotor = async (req, res)=>{
       return res.status(404).json({ message: "Feeder no encontrado" });
     }
 
+    if (!Number.isInteger(portions) || portions <= 0) {
+    return res.status(400).json({
+        message: "Cantidad de porciones inválida"
+    });
+}
     // // Validar si el comedero tiene un userId asignado
     // if (!existingFeeder.userId) {
     //   return res.status(403).json({ message: "Este comedero no está asignado a ningún usuario" });
@@ -352,8 +357,9 @@ const startMotor = async (req, res)=>{
       { feederId },
       {
         $set: {
-          'motorInfo.motorState':true,
-          lastConection: Date.now()
+            'motorInfo.motorState': true,
+            'motorInfo.portions': portions,
+            lastConection: Date.now()
         },
         $push: {
           feederHistory: {
@@ -387,7 +393,7 @@ const startMotor = async (req, res)=>{
       } catch (err) {
         console.error(`Error al apagar motor automáticamente: ${err.message}`);
       }
-    }, 40000); // 10 segundos en milisegundos
+    }, 10000); // 10 segundos en milisegundos
 
     return res.status(200).json({
       message: "Feeder encendedido con éxito"
@@ -449,58 +455,52 @@ const stopMotorFromNodemcu = async (req, res)=>{
 }
 
 //apagar motor
-const stopMotor = async (req, res)=>{
-  const {feederId} = req.body;
-  const userId = req.user._id;
+const completeMotor = async (req, res) => {
+    const apiKey = req.headers["x-api-key"];
 
-  try{
-    // Buscar el feeder
-    const existingFeeder = await Feeder.findOne({ feederId });
-
-    if (!existingFeeder) {
-      return res.status(404).json({ message: "Feeder no encontrado" });
+    if (apiKey !== process.env.NODEMCU_API_KEY) {
+        return res.status(401).json({
+            error: "No autorizado - API Key inválida"
+        });
     }
 
-    // Validar si el comedero tiene un userId asignado
-    if (!existingFeeder.userId) {
-      return res.status(403).json({ message: "Este comedero no está asignado a ningún usuario" });
+    const { feederId } = req.body;
+
+    if (!feederId) {
+        return res.status(400).json({
+            error: "feederId es requerido"
+        });
     }
 
-    // Verificar si el feeder le pertenece al usuario que lo quiere encender
-    if (existingFeeder.userId.toString() !== userId) {
-      return res.status(403).json({ message: "Este comedero no te pertenece" });
-    }
-    
-    // Verificar si ya está encendido
-    if (existingFeeder.motorInfo?.motorState === false) {
-      return res.status(400).json({ message: "El motor ya está apagado" });
-    }
+    try {
+        const feeder = await Feeder.findOneAndUpdate(
+            { feederId },
+            {
+                $set: {
+                    "motorInfo.motorState": false,
+                    lastConection: Date.now()
+                }
+            },
+            { new: true }
+        );
 
-    // Desasignar el feeder
-    const feeder = await Feeder.findOneAndUpdate(
-      { feederId },
-      {
-        $set: {
-          'motorInfo.motorState':false,
-          lastConection: Date.now()
-        },
-        $push: {
-          feederHistory: {
-            fecha: Date.now(),
-            accion: 'apagado'
-          }
+        if (!feeder) {
+            return res.status(404).json({
+                error: "Feeder no encontrado"
+            });
         }
-      }
-    );
 
-    return res.status(200).json({
-      message: "Feeder apagado con éxito"
-    });
-  }catch(err){
-      console.error("Error al encender feeder:", err);
-      res.status(500).json({ message: "Error interno al desasignar el feeder", error: err.message });
-  }
-}
+        return res.status(200).json({
+            message: "Orden de alimentación completada"
+        });
+    } catch (error) {
+        console.error("Error al completar orden:", error);
+
+        return res.status(500).json({
+            error: "Error interno del servidor"
+        });
+    }
+};
 
 //apagar motor
 const addHistoryFromNodemcu = async (req, res)=>{
@@ -559,8 +559,6 @@ const addHistoryFromNodemcu = async (req, res)=>{
       res.status(500).json({ message: "Error interno al desasignar el feeder", error: err.message });
   }
 }
-
-
 
 const editFeeder = async (req,res)=> {
   try {
@@ -650,7 +648,7 @@ const getMotorStatusNodemcu = async (req, res) =>{
       return res.status(404).json({ message: "Comedero no encontrado para el usuario especificado." });
     }
 
-    res.json({motorState:feeder.motorInfo.motorState});
+    res.json({motorState:feeder.motorInfo.motorState,portions:feeder.motorInfo.portions});
   } catch (error) {
     res.status(500).json({ message: "Error al obtener comedero", error: error.message });
   }
@@ -832,7 +830,7 @@ module.exports = {
   editFeeder,
   getMotorStatus,
   getMotorStatusNodemcu,
-  stopMotor,
+  completeMotor,
   stopMotorFromNodemcu,
   getFechasByFeederId,
   getFeederHistory,

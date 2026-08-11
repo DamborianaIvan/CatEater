@@ -61,7 +61,7 @@ bool ApiClient::getFeederInfo(FeederInfo& feederInfo)
     return true;
 }
 
-bool ApiClient::getMotorState(bool& motorState)
+bool ApiClient::getMotorState(bool& motorState, int& portions)
 {
     String endpoint = String("/feeder/motor-state/") + _deviceInfo.getDeviceId();
 
@@ -70,7 +70,8 @@ bool ApiClient::getMotorState(bool& motorState)
     headers.emplace_back("x-api-key", API_KEY);
 
     HttpResponse response = _httpClient.get(buildUrl(endpoint), headers);
-
+    Serial.print("[ApiClient] Motor state response: ");
+    Serial.println(response.body);
     if (!response.success || response.statusCode != 200)
     {
         return false;
@@ -86,8 +87,23 @@ bool ApiClient::getMotorState(bool& motorState)
     }
 
     motorState = document["motorState"] | false;
-
+    portions = document["portions"] | 1;
     return true;
+}
+
+bool ApiClient::completeMotorCommand()
+{
+    String endpoint = "/feeder/motor-state/complete";
+
+    HttpHeaders headers;
+    headers.emplace_back("x-api-key", API_KEY);
+    headers.emplace_back("Content-Type", "application/json");
+
+    String body = "{\"feederId\":\"" + _deviceInfo.getDeviceId() + "\"}";
+
+    HttpResponse response = _httpClient.post(buildUrl(endpoint), body, headers);
+
+    return response.success && response.statusCode >= 200 && response.statusCode < 300;
 }
 
 RegistrationResult ApiClient::registerDevice()

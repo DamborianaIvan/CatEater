@@ -13,7 +13,11 @@ const FeederSchema = new mongoose.Schema({
     startHours: {
       type: [Date]
     },
-    motorState: { type: Boolean, default: false }
+    motorState: { type: Boolean, default: false },
+    portions: {
+        type: Number,
+        default: 1
+    }
   },
   feederHistory: {
     type: [

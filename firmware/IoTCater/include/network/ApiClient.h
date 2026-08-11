@@ -23,7 +23,8 @@ class ApiClient
 
     RegistrationResult registerDevice();
     bool getFeederInfo(FeederInfo& feederInfo);
-    bool getMotorState(bool& motorState);
+    bool getMotorState(bool& motorState, int& portions);
+    bool completeMotorCommand();
 
    private:
     HttpClient& _httpClient;

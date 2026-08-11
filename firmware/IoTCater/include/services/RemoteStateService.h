@@ -19,6 +19,10 @@ class RemoteStateService
     unsigned long _lastRequest = 0;
 
     bool _previousMotorState = false;
+    bool motorState = false;
+    bool _remoteFeedInProgress = false;
+
+    int portions = 1;
 
     static constexpr unsigned long POLL_INTERVAL = 5000;
 
