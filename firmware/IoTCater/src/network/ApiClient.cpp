@@ -61,7 +61,7 @@ bool ApiClient::getFeederInfo(FeederInfo& feederInfo)
     return true;
 }
 
-bool ApiClient::getMotorState(bool& motorState, int& portions)
+bool ApiClient::getMotorState(bool& motorState, int& portions, String& commandId)
 {
     String endpoint = String("/feeder/motor-state/") + _deviceInfo.getDeviceId();
 
@@ -88,10 +88,11 @@ bool ApiClient::getMotorState(bool& motorState, int& portions)
 
     motorState = document["motorState"] | false;
     portions = document["portions"] | 1;
+    commandId = document["commandId"] | "";
     return true;
 }
 
-bool ApiClient::completeMotorCommand()
+bool ApiClient::completeMotorCommand(const String& commandId)
 {
     String endpoint = "/feeder/complete";
 
@@ -99,7 +100,8 @@ bool ApiClient::completeMotorCommand()
     headers.emplace_back("x-api-key", API_KEY);
     headers.emplace_back("Content-Type", "application/json");
 
-    String body = "{\"feederId\":\"" + _deviceInfo.getDeviceId() + "\"}";
+    String body =
+        "{\"feederId\":\"" + _deviceInfo.getDeviceId() + "\",\"commandId\":\"" + commandId + "\"}";
 
     HttpResponse response = _httpClient.post(buildUrl(endpoint), body, headers);
 

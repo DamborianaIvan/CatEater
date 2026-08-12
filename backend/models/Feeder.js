@@ -11,22 +11,35 @@ const FeederSchema = new mongoose.Schema({
   lastConection: { type: Date, default: Date.now },
   motorInfo: {
     startHours: {
-      type: [Date]
+    type: [Date]
     },
-    motorState: { type: Boolean, default: false },
+    motorState: {
+      type: Boolean,
+      default: false
+    },
     portions: {
-        type: Number,
-        default: 1
+      type: Number,
+      default: 1
+    },
+    commandId: {
+      type: String,
+      default: null
     }
   },
   feederHistory: {
-    type: [
-      {
-        fecha: { type: Date, default: Date.now },
-        accion: { type: String, enum: ['encendido', 'apagado'], required: true }
-      }
-    ],
-    default: []
+      type: [
+          {
+              fecha: {
+                  type: Date,
+                  default: Date.now
+              },
+              portions: {
+                  type: Number,
+                  required: true
+              }
+          }
+      ],
+      default: []
   }
 });
 

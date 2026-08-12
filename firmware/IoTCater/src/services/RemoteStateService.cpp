@@ -21,8 +21,9 @@ void RemoteStateService::pollMotorState()
 {
     bool motorState = false;
     int portions = 1;
+    String commandId;
 
-    if (!_apiClient.getMotorState(motorState, portions))
+    if (!_apiClient.getMotorState(motorState, portions, commandId))
     {
         Serial.println("[RemoteStateService] Error al consultar motor state.");
         return;
@@ -31,34 +32,35 @@ void RemoteStateService::pollMotorState()
     Serial.print("[RemoteStateService] Motor state: ");
     Serial.println(motorState ? "ON" : "OFF");
 
-    if (motorState && !_previousMotorState)
+    if (motorState && !commandId.isEmpty() && commandId != _lastCommandId)
     {
-        Serial.print("[RemoteStateService] Orden de alimentacion recibida. Porciones: ");
+        Serial.print("[RemoteStateService] Nueva orden recibida. ID: ");
+        Serial.println(commandId);
+
+        Serial.print("[RemoteStateService] Porciones: ");
         Serial.println(portions);
 
         if (_motor.feed(portions))
         {
             _remoteFeedInProgress = true;
-        }
-        else
-        {
-            Serial.println("[RemoteStateService] No se pudo ejecutar la alimentacion.");
+            _lastCommandId = commandId;
+            _activeCommandId = commandId;
         }
     }
     if (_remoteFeedInProgress && !_motor.isFeeding())
     {
         Serial.println("[RemoteStateService] Alimentacion remota finalizada.");
 
-        if (_apiClient.completeMotorCommand())
+        if (_apiClient.completeMotorCommand(_activeCommandId))
         {
             Serial.println("[RemoteStateService] Comando remoto confirmado.");
 
             _remoteFeedInProgress = false;
+            _activeCommandId = "";
         }
         else
         {
             Serial.println("[RemoteStateService] Error al confirmar comando remoto.");
         }
     }
-    _previousMotorState = motorState;
 }
