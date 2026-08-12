@@ -25,6 +25,7 @@ class ApiClient
     bool getFeederInfo(FeederInfo& feederInfo);
     bool getMotorState(bool& motorState, int& portions, String& commandId);
     bool completeMotorCommand(const String& commandId);
+    bool sendHeartbeat();
 
    private:
     HttpClient& _httpClient;

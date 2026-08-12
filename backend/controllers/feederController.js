@@ -814,6 +814,51 @@ const clearFeederHistory = async (req, res) => {
   }
 };
 
+const heartbeat = async (req, res) => {
+  const apiKey = req.headers["x-api-key"];
+
+  if (apiKey !== process.env.NODEMCU_API_KEY) {
+    return res.status(401).json({
+      error: "No autorizado - API Key inválida"
+    });
+  }
+
+  const { feederId } = req.body;
+
+  if (!feederId) {
+    return res.status(400).json({
+      error: "feederId es requerido"
+    });
+  }
+
+  try {
+    const feeder = await Feeder.findOneAndUpdate(
+      { feederId },
+      {
+        $set: {
+          lastConection: Date.now()
+        }
+      },
+      { new: true }
+    );
+
+    if (!feeder) {
+      return res.status(404).json({
+        error: "Feeder no encontrado"
+      });
+    }
+
+    return res.status(200).json({
+      message: "Heartbeat recibido"
+    });
+  } catch (error) {
+    console.error("Error al procesar heartbeat:", error);
+
+    return res.status(500).json({
+      error: "Error interno del servidor"
+    });
+  }
+};
 
 module.exports = {
   registerFeeder,
@@ -833,5 +878,6 @@ module.exports = {
   stopMotorFromNodemcu,
   getFechasByFeederId,
   getFeederHistory,
-  addHistoryFromNodemcu
+  addHistoryFromNodemcu,
+  heartbeat
 };

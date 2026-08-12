@@ -11,6 +11,7 @@
 #include "network/HttpClient.h"
 #include "network/ApiClient.h"
 #include "services/RemoteStateService.h"
+#include "HeartbetServices.h"
 
 Motor motor;
 WiFiService wifi;
@@ -23,6 +24,7 @@ DeviceInfo deviceInfo(wifi);
 ApiClient apiClient(httpClient, deviceInfo);
 RemoteStateService remoteStateService(apiClient, motor);
 WebServer webServer(motor, wifi, scheduler, configuration, storage);
+HeartbeatService heartbeatService(apiClient);
 
 void handleWifiConnected()
 {
@@ -86,6 +88,7 @@ void setup()
 
     scheduler.begin();
     webServer.begin();
+    heartbeatService.begin();
 }
 
 void loop()
@@ -100,4 +103,5 @@ void loop()
     motor.update();
     remoteStateService.update();
     webServer.update();
+    heartbeatService.update();
 }

@@ -866,8 +866,10 @@ router.delete('/feeders/:feederId', verifyToken, feederController.deleteFeeder);
 //Obtener historial de ejecs
 router.get('/feeder/:feederId/historial', verifyToken, feederController.getFeederHistory);
 
-
 //Encender comedero desde nodemcu
 router.post('/feeder/history/add',feederController.addHistoryFromNodemcu);
+
+//Comunica el estado del dispositivo hacia el backend
+router.post("/feeders/heartbeat", feederController.heartbeat);
 
 module.exports = router;
