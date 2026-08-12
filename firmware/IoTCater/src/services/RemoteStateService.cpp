@@ -45,22 +45,28 @@ void RemoteStateService::pollMotorState()
             _remoteFeedInProgress = true;
             _lastCommandId = commandId;
             _activeCommandId = commandId;
+            _lastConfirmationAttempt = 0;
         }
     }
     if (_remoteFeedInProgress && !_motor.isFeeding())
     {
-        Serial.println("[RemoteStateService] Alimentacion remota finalizada.");
-
-        if (_apiClient.completeMotorCommand(_activeCommandId))
+        if (millis() - _lastConfirmationAttempt >= CONFIRMATION_RETRY_INTERVAL)
         {
-            Serial.println("[RemoteStateService] Comando remoto confirmado.");
+            _lastConfirmationAttempt = millis();
 
-            _remoteFeedInProgress = false;
-            _activeCommandId = "";
-        }
-        else
-        {
-            Serial.println("[RemoteStateService] Error al confirmar comando remoto.");
+            Serial.println("[RemoteStateService] Confirmando alimentacion remota...");
+
+            if (_apiClient.completeMotorCommand(_activeCommandId))
+            {
+                Serial.println("[RemoteStateService] Comando remoto confirmado.");
+
+                _remoteFeedInProgress = false;
+                _activeCommandId = "";
+            }
+            else
+            {
+                Serial.println("[RemoteStateService] Confirmacion fallida. Reintentando...");
+            }
         }
     }
 }

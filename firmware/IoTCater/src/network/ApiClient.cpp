@@ -104,7 +104,6 @@ bool ApiClient::completeMotorCommand(const String& commandId)
         "{\"feederId\":\"" + _deviceInfo.getDeviceId() + "\",\"commandId\":\"" + commandId + "\"}";
 
     HttpResponse response = _httpClient.post(buildUrl(endpoint), body, headers);
-
     return response.success && response.statusCode >= 200 && response.statusCode < 300;
 }
 

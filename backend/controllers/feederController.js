@@ -455,15 +455,21 @@ const completeMotorCommand = async (req, res) => {
     }
 
     if (!feeder.motorInfo?.motorState) {
-        return res.status(400).json({
-            error: "No hay una orden de alimentación pendiente"
+      if (feeder.motorInfo?.commandId === commandId) {
+        return res.status(200).json({
+          message: "Orden ya completada"
         });
+      }
+
+      return res.status(409).json({
+        error: "No hay una orden pendiente para este commandId"
+      });
     }
 
     if (feeder.motorInfo.commandId !== commandId) {
-        return res.status(409).json({
-            error: "La orden no coincide con la orden activa"
-        });
+      return res.status(409).json({
+        error: "La orden no coincide con la orden activa"
+      });
     }
     const portions = feeder.motorInfo?.portions || 1;
 
@@ -482,7 +488,7 @@ const completeMotorCommand = async (req, res) => {
         }
       }
     );
-
+    
     return res.status(200).json({
       message: "Orden de alimentación completada"
     });

@@ -16,6 +16,9 @@ class RemoteStateService
     ApiClient& _apiClient;
     Motor& _motor;
 
+    static constexpr unsigned long CONFIRMATION_RETRY_INTERVAL = 5000;
+
+    unsigned long _lastConfirmationAttempt = 0;
     unsigned long _lastRequest = 0;
 
     bool motorState = false;
