@@ -12,6 +12,8 @@
 #include "network/ApiClient.h"
 #include "services/RemoteStateService.h"
 #include "HeartbetServices.h"
+#include "ButtonService.h"
+#include "FeedingService.h"
 
 Motor motor;
 WiFiService wifi;
@@ -25,7 +27,8 @@ ApiClient apiClient(httpClient, deviceInfo);
 RemoteStateService remoteStateService(apiClient, motor);
 WebServer webServer(motor, wifi, scheduler, configuration, storage);
 HeartbeatService heartbeatService(apiClient);
-
+FeedingService feedingService(motor);
+ButtonService buttonService(feedingService, D0);
 void handleWifiConnected()
 {
     deviceInfo.printBootInfo();
@@ -85,7 +88,7 @@ void setup()
     motor.setStepsPerFeed(configuration.stepsPerFeed);
 
     wifi.begin(WIFI_SSID, WIFI_PASSWORD);
-
+    buttonService.begin();
     scheduler.begin();
     webServer.begin();
     heartbeatService.begin();
@@ -104,4 +107,5 @@ void loop()
     remoteStateService.update();
     webServer.update();
     heartbeatService.update();
+    buttonService.update();
 }
