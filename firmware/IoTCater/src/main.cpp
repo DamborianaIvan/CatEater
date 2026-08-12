@@ -14,21 +14,24 @@
 #include "HeartbetServices.h"
 #include "ButtonService.h"
 #include "FeedingService.h"
+#include "Feeding1HistoryService.h"
 
 Motor motor;
+FeedingHistoryService feedingHistoryService;
+FeedingService feedingService(motor, feedingHistoryService);
 WiFiService wifi;
 TimeService timeService(wifi);
 HttpClient httpClient;
 Configuration configuration;
-Scheduler scheduler(timeService, motor, configuration);
+Scheduler scheduler(timeService, feedingService, configuration);
 ConfigurationStorage storage;
 DeviceInfo deviceInfo(wifi);
 ApiClient apiClient(httpClient, deviceInfo);
-RemoteStateService remoteStateService(apiClient, motor);
+RemoteStateService remoteStateService(apiClient, feedingService);
 WebServer webServer(motor, wifi, scheduler, configuration, storage);
 HeartbeatService heartbeatService(apiClient);
-FeedingService feedingService(motor);
 ButtonService buttonService(feedingService, D0);
+
 void handleWifiConnected()
 {
     deviceInfo.printBootInfo();
@@ -108,4 +111,5 @@ void loop()
     webServer.update();
     heartbeatService.update();
     buttonService.update();
+    feedingHistoryService.begin();
 }

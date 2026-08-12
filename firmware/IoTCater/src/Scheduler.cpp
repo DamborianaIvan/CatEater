@@ -1,7 +1,8 @@
 #include "Scheduler.h"
-Scheduler::Scheduler(TimeService& timeService, Motor& motor, Configuration& configuration)
+Scheduler::Scheduler(TimeService& timeService, FeedingService& feedingService,
+                     Configuration& configuration)
     : _timeService(timeService),
-      _motor(motor),
+      _feedingService(feedingService),
       _configuration(configuration),
       _executionRegistered(false),
       _lastExecutionHour(0),
@@ -102,7 +103,7 @@ void Scheduler::update()
             continue;
         }
 
-        if (_motor.feed(schedule.portions))
+        if (_feedingService.feed(schedule.portions, FeedingSource::Scheduled))
         {
             markExecution();
 

@@ -22,7 +22,7 @@ void ButtonService::update()
     {
         Serial.println("[ButtonService] Alimentacion manual solicitada.");
 
-        if (_feedingService.feed(DEFAULT_PORTIONS))
+        if (_feedingService.feed(DEFAULT_PORTIONS, FeedingSource::Physical))
         {
             Serial.println("[ButtonService] Alimentacion iniciada.");
         }

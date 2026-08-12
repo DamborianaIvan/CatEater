@@ -1,7 +1,7 @@
 #include "services/RemoteStateService.h"
 
-RemoteStateService::RemoteStateService(ApiClient& apiClient, Motor& motor)
-    : _apiClient(apiClient), _motor(motor)
+RemoteStateService::RemoteStateService(ApiClient& apiClient, FeedingService& feedingService)
+    : _apiClient(apiClient), _feedingService(feedingService)
 {
 }
 
@@ -40,7 +40,7 @@ void RemoteStateService::pollMotorState()
         Serial.print("[RemoteStateService] Porciones: ");
         Serial.println(portions);
 
-        if (_motor.feed(portions))
+        if (_feedingService.feed(portions, FeedingSource::Remote))
         {
             _remoteFeedInProgress = true;
             _lastCommandId = commandId;
@@ -48,7 +48,7 @@ void RemoteStateService::pollMotorState()
             _lastConfirmationAttempt = 0;
         }
     }
-    if (_remoteFeedInProgress && !_motor.isFeeding())
+    if (_remoteFeedInProgress && !_feedingService.isFeeding())
     {
         if (millis() - _lastConfirmationAttempt >= CONFIRMATION_RETRY_INTERVAL)
         {

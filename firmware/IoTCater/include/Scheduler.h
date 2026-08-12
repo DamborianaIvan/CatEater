@@ -2,15 +2,16 @@
 #define SCHEDULER_H
 
 #include "TimeService.h"
-#include "Motor.h"
 #include "SchedulerConstants.h"
 #include "FeedSchedule.h"
 #include "Configuration.h"
+#include "FeedingService.h"
 
 class Scheduler
 {
    public:
-    Scheduler(TimeService& timeService, Motor& motor, Configuration& configuation);
+    Scheduler(TimeService& timeService, FeedingService& feedingService,
+              Configuration& configuation);
 
     bool begin();
 
@@ -20,7 +21,7 @@ class Scheduler
 
    private:
     TimeService& _timeService;
-    Motor& _motor;
+    FeedingService& _feedingService;
     Configuration& _configuration;
 
     bool isScheduledTime(const FeedSchedule& schedule) const;

@@ -3,18 +3,18 @@
 #include <Arduino.h>
 
 #include "network/ApiClient.h"
-#include "Motor.h"
+#include "FeedingService.h"
 
 class RemoteStateService
 {
    public:
-    explicit RemoteStateService(ApiClient& apiClient, Motor& motor);
+    explicit RemoteStateService(ApiClient& apiClient, FeedingService& _feedingService);
 
     void update();
 
    private:
     ApiClient& _apiClient;
-    Motor& _motor;
+    FeedingService& _feedingService;
 
     static constexpr unsigned long CONFIRMATION_RETRY_INTERVAL = 5000;
 
