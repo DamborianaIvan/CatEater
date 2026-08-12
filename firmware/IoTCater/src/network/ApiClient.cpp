@@ -93,7 +93,7 @@ bool ApiClient::getMotorState(bool& motorState, int& portions)
 
 bool ApiClient::completeMotorCommand()
 {
-    String endpoint = "/feeder/motor-state/complete";
+    String endpoint = "/feeder/complete";
 
     HttpHeaders headers;
     headers.emplace_back("x-api-key", API_KEY);

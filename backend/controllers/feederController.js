@@ -370,31 +370,6 @@ const startMotor = async (req, res)=>{
       },
       { new: true }
     );
-    
-    // Configurar apagado automático en 10 segundos
-     setTimeout(async () => {
-      try {
-        await Feeder.findOneAndUpdate(
-          { feederId },
-          {
-            $set: { 
-              'motorInfo.motorState': false, 
-              lastConection: Date.now()
-            },
-            $push: {
-              feederHistory: {
-                fecha: Date.now(),
-                accion: 'apagado'
-              }
-            }
-          }
-        );
-        console.log(`Motor apagado automáticamente para feeder ${feederId}`);
-      } catch (err) {
-        console.error(`Error al apagar motor automáticamente: ${err.message}`);
-      }
-    }, 10000); // 10 segundos en milisegundos
-
     return res.status(200).json({
       message: "Feeder encendedido con éxito"
     });
