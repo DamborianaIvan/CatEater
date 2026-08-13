@@ -5,8 +5,6 @@ HeartbeatService::HeartbeatService(ApiClient& apiClient) : _apiClient(apiClient)
 void HeartbeatService::begin()
 {
     _lastHeartbeat = millis();
-
-    Serial.println("[HeartbeatService] Iniciado.");
 }
 
 void HeartbeatService::update()
@@ -18,11 +16,7 @@ void HeartbeatService::update()
 
     _lastHeartbeat = millis();
 
-    if (_apiClient.sendHeartbeat())
-    {
-        Serial.println("[HeartbeatService] Heartbeat enviado.");
-    }
-    else
+    if (!_apiClient.sendHeartbeat())
     {
         Serial.println("[HeartbeatService] Error al enviar heartbeat.");
     }

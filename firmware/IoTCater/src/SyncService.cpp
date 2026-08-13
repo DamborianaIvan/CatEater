@@ -9,8 +9,6 @@ SyncService::SyncService(ApiClient& apiClient, FeedingHistoryService& historySer
 void SyncService::begin()
 {
     _lastSync = 0;
-
-    Serial.println("[SyncService] Iniciado.");
 }
 
 void SyncService::update()

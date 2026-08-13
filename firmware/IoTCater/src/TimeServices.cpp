@@ -36,7 +36,6 @@ void TimeService::update()
     {
         initializeNtp();
         _ntpStarted = true;
-        Serial.println("[TimeService] NTP iniciado.");
     }
     time_t currentTime = time(nullptr);
 

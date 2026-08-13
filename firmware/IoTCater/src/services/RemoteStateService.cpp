@@ -29,9 +29,6 @@ void RemoteStateService::pollMotorState()
         return;
     }
 
-    Serial.print("[RemoteStateService] Motor state: ");
-    Serial.println(motorState ? "ON" : "OFF");
-
     if (motorState && !commandId.isEmpty() && commandId != _lastCommandId)
     {
         Serial.print("[RemoteStateService] Nueva orden recibida. ID: ");

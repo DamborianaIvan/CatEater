@@ -70,8 +70,6 @@ bool ApiClient::getMotorState(bool& motorState, int& portions, String& commandId
     headers.emplace_back("x-api-key", API_KEY);
 
     HttpResponse response = _httpClient.get(buildUrl(endpoint), headers);
-    Serial.print("[ApiClient] Motor state response: ");
-    Serial.println(response.body);
     if (!response.success || response.statusCode != 200)
     {
         return false;
@@ -161,14 +159,9 @@ bool ApiClient::syncFeedingEvent(const FeedingEvent& event)
 
     String body;
     serializeJson(document, body);
-    Serial.print("[ApiClient] Sync body: ");
-    Serial.println(body);
-    HttpResponse response = _httpClient.post(buildUrl(endpoint), body, headers);
-    Serial.print("[ApiClient] Sync history status: ");
-    Serial.println(response.statusCode);
 
-    Serial.print("[ApiClient] Sync history response: ");
-    Serial.println(response.body);
+    HttpResponse response = _httpClient.post(buildUrl(endpoint), body, headers);
+
     return response.success && response.statusCode >= 200 && response.statusCode < 300;
 }
 

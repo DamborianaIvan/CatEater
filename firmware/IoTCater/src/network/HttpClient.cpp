@@ -23,16 +23,12 @@ HttpResponse HttpClient::executeRequest(const String& url, HttpMethod method, co
 
     bool started = false;
 
-    Serial.print("[HttpClient] -> ");
-    Serial.println(url);
     if (url.startsWith("https://"))
     {
-        Serial.println("[HttpClient] Protocol: HTTPS");
         started = http.begin(_secureClient, url);
     }
     else
     {
-        Serial.println("[HttpClient] Protocol: HTTP");
         started = http.begin(_client, url);
     }
 
