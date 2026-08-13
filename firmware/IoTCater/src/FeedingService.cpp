@@ -1,12 +1,14 @@
 #include "FeedingService.h"
 
-FeedingService::FeedingService(Motor& motor, FeedingHistoryService& historyService)
-    : _motor(motor), _historyService(historyService)
+FeedingService::FeedingService(Motor& motor, FeedingHistoryService& historyService,
+                               TimeService& timeService)
+    : _motor(motor), _historyService(historyService), _timeService(timeService)
 {
 }
 
 bool FeedingService::feed(int portions, FeedingSource source)
 {
+    String eventId = String(ESP.getChipId(), HEX) + "-" + String(micros(), HEX);
     if (portions <= 0)
     {
         return false;
@@ -17,7 +19,8 @@ bool FeedingService::feed(int portions, FeedingSource source)
         return false;
     }
 
-    FeedingEvent event{time(nullptr), static_cast<uint8_t>(portions), source};
+    time_t timestamp = _timeService.getTimestamp();
+    FeedingEvent event{eventId, timestamp, static_cast<uint8_t>(portions), source, false};
 
     if (!_historyService.save(event))
     {

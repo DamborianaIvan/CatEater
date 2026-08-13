@@ -28,7 +28,10 @@ const FeederSchema = new mongoose.Schema({
   },
   feederHistory: {
       type: [
-          {
+          {   eventId: {
+                type: String,
+                default: null
+              },
               fecha: {
                   type: Date,
                   default: Date.now

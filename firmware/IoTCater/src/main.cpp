@@ -16,12 +16,13 @@
 #include "FeedingService.h"
 #include "FeedingHistoryService.h"
 #include "SyncService.h"
+#include "TimeService.h"
 
 Motor motor;
 FeedingHistoryService feedingHistoryService;
-FeedingService feedingService(motor, feedingHistoryService);
 WiFiService wifi;
 TimeService timeService(wifi);
+FeedingService feedingService(motor, feedingHistoryService, timeService);
 HttpClient httpClient;
 Configuration configuration;
 Scheduler scheduler(timeService, feedingService, configuration);
@@ -32,7 +33,7 @@ RemoteStateService remoteStateService(apiClient, feedingService);
 WebServer webServer(motor, wifi, scheduler, configuration, storage);
 HeartbeatService heartbeatService(apiClient);
 ButtonService buttonService(feedingService, D0);
-SyncService syncService(apiClient, feedingHistoryService);
+SyncService syncService(apiClient, feedingHistoryService, timeService);
 
 void handleWifiConnected()
 {
@@ -98,6 +99,7 @@ void setup()
     webServer.begin();
     heartbeatService.begin();
     feedingHistoryService.begin();
+
     const auto history = feedingHistoryService.getHistory();
 
     Serial.println("========== Feeding History ==========");
@@ -148,5 +150,5 @@ void loop()
     webServer.update();
     heartbeatService.update();
     buttonService.update();
-    syncService.begin();
+    syncService.update();
 }

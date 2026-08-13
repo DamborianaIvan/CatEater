@@ -12,6 +12,16 @@ void TimeService::begin()
     Serial.println("[TimeService] Inicializado.");
 }
 
+time_t TimeService::getTimestamp() const
+{
+    if (!_timeAvailable)
+    {
+        return 0;
+    }
+
+    return time(nullptr);
+}
+
 void TimeService::update()
 {
     if (_timeAvailable)

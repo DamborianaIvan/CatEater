@@ -52,6 +52,7 @@ std::vector<FeedingEvent> FeedingHistoryService::getHistory()
     {
         FeedingEvent event;
 
+        event.eventId = entry["eventId"] | "";
         event.timestamp = entry["timestamp"] | 0;
         event.portions = entry["portions"] | 0;
         event.synced = entry["synced"] | false;
@@ -97,7 +98,7 @@ std::vector<FeedingEvent> FeedingHistoryService::getPendingEvents()
     return pending;
 }
 
-bool FeedingHistoryService::markAsSynced(time_t timestamp)
+bool FeedingHistoryService::markAsSynced(const String& eventId)
 {
     if (!LittleFS.exists(HISTORY_FILE))
     {
@@ -123,13 +124,21 @@ bool FeedingHistoryService::markAsSynced(time_t timestamp)
 
     JsonArray history = document.as<JsonArray>();
 
+    bool found = false;
+
     for (JsonObject entry : history)
     {
-        if (entry["timestamp"] == timestamp)
+        if (entry["eventId"] == eventId)
         {
             entry["synced"] = true;
+            found = true;
             break;
         }
+    }
+
+    if (!found)
+    {
+        return false;
     }
 
     file = LittleFS.open(HISTORY_FILE, "w");
@@ -141,7 +150,7 @@ bool FeedingHistoryService::markAsSynced(time_t timestamp)
 
     serializeJson(document, file);
     file.close();
-
+    Serial.println("[FeedingHistoryService] Evento marcado como sincronizado.");
     return true;
 }
 
@@ -181,6 +190,7 @@ bool FeedingHistoryService::save(const FeedingEvent& event)
 
     JsonObject entry = history.add<JsonObject>();
 
+    entry["eventId"] = event.eventId;
     entry["timestamp"] = event.timestamp;
     entry["portions"] = event.portions;
     entry["synced"] = event.synced;

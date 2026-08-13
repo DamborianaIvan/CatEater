@@ -2,11 +2,13 @@
 
 #include "network/ApiClient.h"
 #include "FeedingHistoryService.h"
+#include "TimeService.h"
 
 class SyncService
 {
    public:
-    SyncService(ApiClient& apiClient, FeedingHistoryService& historyService);
+    SyncService(ApiClient& apiClient, FeedingHistoryService& historyService,
+                TimeService& timeService);
 
     void begin();
     void update();
@@ -14,6 +16,7 @@ class SyncService
    private:
     ApiClient& _apiClient;
     FeedingHistoryService& _historyService;
+    TimeService& _timeService;
 
     unsigned long _lastSync = 0;
 

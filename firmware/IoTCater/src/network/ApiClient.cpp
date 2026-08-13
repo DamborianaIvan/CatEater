@@ -100,8 +100,13 @@ bool ApiClient::completeMotorCommand(const String& commandId)
     headers.emplace_back("x-api-key", API_KEY);
     headers.emplace_back("Content-Type", "application/json");
 
-    String body =
-        "{\"feederId\":\"" + _deviceInfo.getDeviceId() + "\",\"commandId\":\"" + commandId + "\"}";
+    JsonDocument document;
+
+    document["feederId"] = _deviceInfo.getDeviceId();
+    document["commandId"] = commandId;
+
+    String body;
+    serializeJson(document, body);
 
     HttpResponse response = _httpClient.post(buildUrl(endpoint), body, headers);
     return response.success && response.statusCode >= 200 && response.statusCode < 300;
@@ -146,13 +151,24 @@ bool ApiClient::syncFeedingEvent(const FeedingEvent& event)
             source = "remote";
             break;
     }
+    JsonDocument document;
 
-    String body = "{\"feederId\":\"" + _deviceInfo.getDeviceId() +
-                  "\",\"timestamp\":" + String(event.timestamp) +
-                  ",\"portions\":" + String(event.portions) + ",\"source\":\"" + source + "\"}";
+    document["eventId"] = event.eventId;
+    document["feederId"] = _deviceInfo.getDeviceId();
+    document["timestamp"] = event.timestamp;
+    document["portions"] = event.portions;
+    document["source"] = source;
 
+    String body;
+    serializeJson(document, body);
+    Serial.print("[ApiClient] Sync body: ");
+    Serial.println(body);
     HttpResponse response = _httpClient.post(buildUrl(endpoint), body, headers);
+    Serial.print("[ApiClient] Sync history status: ");
+    Serial.println(response.statusCode);
 
+    Serial.print("[ApiClient] Sync history response: ");
+    Serial.println(response.body);
     return response.success && response.statusCode >= 200 && response.statusCode < 300;
 }
 

@@ -4,11 +4,13 @@
 #include "FeedingEvent.h"
 #include "FeedingService.h"
 #include "FeedingHistoryService.h"
+#include "TimeService.h"
 
 class FeedingService
 {
    public:
-    explicit FeedingService(Motor& motor, FeedingHistoryService& historyService);
+    explicit FeedingService(Motor& motor, FeedingHistoryService& historyService,
+                            TimeService& timeService);
 
     bool feed(int portions, FeedingSource source);
     bool isFeeding() const;
@@ -16,4 +18,5 @@ class FeedingService
    private:
     Motor& _motor;
     FeedingHistoryService& _historyService;
+    TimeService& _timeService;
 };

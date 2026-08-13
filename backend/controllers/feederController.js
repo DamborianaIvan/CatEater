@@ -512,13 +512,22 @@ const syncFeedingHistory = async (req, res) => {
   }
 
   const {
+    eventId,
     feederId,
     timestamp,
     portions,
     source
   } = req.body;
 
-  if (!feederId || !timestamp || !portions || !source) {
+  if (
+    !eventId ||
+    !feederId ||
+    timestamp === undefined ||
+    timestamp === null ||
+    portions === undefined ||
+    portions === null ||
+    !source
+  ) {
     return res.status(400).json({
       error: "Datos de alimentación incompletos"
     });
@@ -526,14 +535,25 @@ const syncFeedingHistory = async (req, res) => {
 
   try {
     const feeder = await Feeder.findOne({ feederId });
-
+    
     if (!feeder) {
       return res.status(404).json({
         error: "Feeder no encontrado"
       });
     }
+    
+    //Valisamos duplicado
+    const alreadyExists = feeder.feederHistory.some(
+      event => event.eventId === eventId
+    );
 
+    if (alreadyExists) {
+      return res.status(200).json({
+        message: "Alimentación ya sincronizada"
+      });
+    }
     feeder.feederHistory.push({
+      eventId,
       fecha: new Date(timestamp * 1000),
       portions,
       source

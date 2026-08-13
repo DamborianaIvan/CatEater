@@ -16,6 +16,7 @@ class TimeService
     int getHour() const;
     int getMinute() const;
     int getSecond() const;
+    time_t getTimestamp() const;
 
    private:
     WiFiService& _wifi;

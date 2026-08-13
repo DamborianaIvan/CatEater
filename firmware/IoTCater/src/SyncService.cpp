@@ -1,7 +1,8 @@
 #include "SyncService.h"
 
-SyncService::SyncService(ApiClient& apiClient, FeedingHistoryService& historyService)
-    : _apiClient(apiClient), _historyService(historyService)
+SyncService::SyncService(ApiClient& apiClient, FeedingHistoryService& historyService,
+                         TimeService& timeService)
+    : _apiClient(apiClient), _historyService(historyService), _timeService(timeService)
 {
 }
 
@@ -32,14 +33,14 @@ void SyncService::update()
     {
         if (_apiClient.syncFeedingEvent(event))
         {
-            _historyService.markAsSynced(event.timestamp);
-
-            Serial.println("[SyncService] Evento sincronizado.");
+            if (_historyService.markAsSynced(event.eventId))
+            {
+                Serial.println("[SyncService] Evento sincronizado.");
+            }
         }
         else
         {
             Serial.println("[SyncService] Error sincronizando evento.");
-
             break;
         }
     }
