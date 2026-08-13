@@ -14,7 +14,7 @@
 #include "HeartbetServices.h"
 #include "ButtonService.h"
 #include "FeedingService.h"
-#include "Feeding1HistoryService.h"
+#include "FeedingHistoryService.h"
 
 Motor motor;
 FeedingHistoryService feedingHistoryService;
@@ -95,6 +95,38 @@ void setup()
     scheduler.begin();
     webServer.begin();
     heartbeatService.begin();
+    feedingHistoryService.begin();
+    const auto history = feedingHistoryService.getHistory();
+
+    Serial.println("========== Feeding History ==========");
+
+    for (const auto& event : history)
+    {
+        Serial.print("Timestamp: ");
+        Serial.println(event.timestamp);
+
+        Serial.print("Portions: ");
+        Serial.println(event.portions);
+
+        Serial.print("Source: ");
+
+        switch (event.source)
+        {
+            case FeedingSource::Physical:
+                Serial.println("physical");
+                break;
+
+            case FeedingSource::Scheduled:
+                Serial.println("scheduled");
+                break;
+
+            case FeedingSource::Remote:
+                Serial.println("remote");
+                break;
+        }
+
+        Serial.println("--------------------------------------");
+    }
 }
 
 void loop()
@@ -111,5 +143,4 @@ void loop()
     webServer.update();
     heartbeatService.update();
     buttonService.update();
-    feedingHistoryService.begin();
 }
