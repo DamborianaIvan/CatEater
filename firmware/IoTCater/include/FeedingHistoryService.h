@@ -11,6 +11,8 @@ class FeedingHistoryService
     bool begin();
     bool save(const FeedingEvent& event);
     std::vector<FeedingEvent> getHistory();
+    std::vector<FeedingEvent> getPendingEvents();
+    bool markAsSynced(time_t timestamp);
     bool synced;
 
    private:

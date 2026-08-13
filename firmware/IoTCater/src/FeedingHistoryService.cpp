@@ -54,7 +54,7 @@ std::vector<FeedingEvent> FeedingHistoryService::getHistory()
 
         event.timestamp = entry["timestamp"] | 0;
         event.portions = entry["portions"] | 0;
-
+        event.synced = entry["synced"] | false;
         const char* source = entry["source"] | "";
 
         if (strcmp(source, "physical") == 0)
@@ -78,6 +78,71 @@ std::vector<FeedingEvent> FeedingHistoryService::getHistory()
     }
 
     return history;
+}
+
+std::vector<FeedingEvent> FeedingHistoryService::getPendingEvents()
+{
+    std::vector<FeedingEvent> pending;
+
+    const auto history = getHistory();
+
+    for (const auto& event : history)
+    {
+        if (!event.synced)
+        {
+            pending.push_back(event);
+        }
+    }
+
+    return pending;
+}
+
+bool FeedingHistoryService::markAsSynced(time_t timestamp)
+{
+    if (!LittleFS.exists(HISTORY_FILE))
+    {
+        return false;
+    }
+
+    File file = LittleFS.open(HISTORY_FILE, "r");
+
+    if (!file)
+    {
+        return false;
+    }
+
+    JsonDocument document;
+
+    if (deserializeJson(document, file))
+    {
+        file.close();
+        return false;
+    }
+
+    file.close();
+
+    JsonArray history = document.as<JsonArray>();
+
+    for (JsonObject entry : history)
+    {
+        if (entry["timestamp"] == timestamp)
+        {
+            entry["synced"] = true;
+            break;
+        }
+    }
+
+    file = LittleFS.open(HISTORY_FILE, "w");
+
+    if (!file)
+    {
+        return false;
+    }
+
+    serializeJson(document, file);
+    file.close();
+
+    return true;
 }
 
 bool FeedingHistoryService::save(const FeedingEvent& event)
@@ -118,6 +183,7 @@ bool FeedingHistoryService::save(const FeedingEvent& event)
 
     entry["timestamp"] = event.timestamp;
     entry["portions"] = event.portions;
+    entry["synced"] = event.synced;
 
     switch (event.source)
     {

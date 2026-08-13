@@ -15,6 +15,7 @@
 #include "ButtonService.h"
 #include "FeedingService.h"
 #include "FeedingHistoryService.h"
+#include "SyncService.h"
 
 Motor motor;
 FeedingHistoryService feedingHistoryService;
@@ -31,6 +32,7 @@ RemoteStateService remoteStateService(apiClient, feedingService);
 WebServer webServer(motor, wifi, scheduler, configuration, storage);
 HeartbeatService heartbeatService(apiClient);
 ButtonService buttonService(feedingService, D0);
+SyncService syncService(apiClient, feedingHistoryService);
 
 void handleWifiConnected()
 {
@@ -125,6 +127,9 @@ void setup()
                 break;
         }
 
+        Serial.print("Synced: ");
+        Serial.println(event.synced ? "true" : "false");
+
         Serial.println("--------------------------------------");
     }
 }
@@ -143,4 +148,5 @@ void loop()
     webServer.update();
     heartbeatService.update();
     buttonService.update();
+    syncService.begin();
 }

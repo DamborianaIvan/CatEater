@@ -34,8 +34,13 @@ const FeederSchema = new mongoose.Schema({
                   default: Date.now
               },
               portions: {
-                  type: Number,
-                  required: true
+                type: Number,
+                default: 1
+              },
+              source: {
+                type: String,
+                enum: ["physical", "scheduled", "remote", "legacy"],
+                default: "legacy"
               }
           }
       ],

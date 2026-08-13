@@ -427,7 +427,7 @@ const stopMotorFromNodemcu = async (req, res)=>{
   }
 }
 
-//apagar motor
+//completar ejecucion de motor
 const completeMotorCommand = async (req, res) => {
   const apiKey = req.headers["x-api-key"];
 
@@ -501,63 +501,60 @@ const completeMotorCommand = async (req, res) => {
   }
 };
 
-//apagar motor
-const addHistoryFromNodemcu = async (req, res)=>{
-  const {feederId} = req.body;
-  const apiKey = req.headers['x-api-key'];
-  
-  if (!apiKey) return res.status(401).json({ message: "Falta la API Key" });
-  if (apiKey !== process.env.NODEMCU_API_KEY) return res.status(403).json({ message: "API Key inválida" });
+//agregar historial guardado en la little.fs
+const syncFeedingHistory = async (req, res) => {
+  const apiKey = req.headers["x-api-key"];
 
-  try{
-    // Buscar el feeder
-    const existingFeeder = await Feeder.findOne({ feederId });
+  if (apiKey !== process.env.NODEMCU_API_KEY) {
+    return res.status(401).json({
+      error: "No autorizado - API Key inválida"
+    });
+  }
 
-    if (!existingFeeder) {
-      return res.status(404).json({ message: "Feeder no encontrado" });
+  const {
+    feederId,
+    timestamp,
+    portions,
+    source
+  } = req.body;
+
+  if (!feederId || !timestamp || !portions || !source) {
+    return res.status(400).json({
+      error: "Datos de alimentación incompletos"
+    });
+  }
+
+  try {
+    const feeder = await Feeder.findOne({ feederId });
+
+    if (!feeder) {
+      return res.status(404).json({
+        error: "Feeder no encontrado"
+      });
     }
 
-    const feeder = await Feeder.findOneAndUpdate(
-      { feederId },
-      {
-        $push: {
-          feederHistory: {
-            fecha: Date.now(),
-            accion: 'encendido'
-          }
-        }
-      },
-      { new: true }
-    );
-    console.log(`Motor encendido automáticamente para feeder ${feederId}`);
-    // Configurar apagado automático en 10 segundos
-     setTimeout(async () => {
-      try {
-        await Feeder.findOneAndUpdate(
-          { feederId },
-          {
-            $push: {
-              feederHistory: {
-                fecha: Date.now(),
-                accion: 'apagado'
-              }
-            }
-          }
-        );
-        console.log(`Motor apagado automáticamente para feeder ${feederId}`);
-      } catch (err) {
-        console.error(`Error al apagar motor automáticamente: ${err.message}`);
-      }
-    }, 40000); // 40 segundos en milisegundos
+    feeder.feederHistory.push({
+      fecha: new Date(timestamp * 1000),
+      portions,
+      source
+    });
+
+    await feeder.save();
 
     return res.status(200).json({
-      message: "Feeder encendedido con éxito"
+      message: "Alimentación sincronizada"
     });
-  }catch(err){
-      console.error("Error al encender feeder:", err);
-      res.status(500).json({ message: "Error interno al desasignar el feeder", error: err.message });
+  } catch (error) {
+    console.error(
+      "Error al sincronizar alimentación:",
+      error
+    );
+
+    return res.status(500).json({
+      error: "Error interno del servidor"
+    });
   }
-}
+};
 
 const editFeeder = async (req,res)=> {
   try {
@@ -878,6 +875,6 @@ module.exports = {
   stopMotorFromNodemcu,
   getFechasByFeederId,
   getFeederHistory,
-  addHistoryFromNodemcu,
+  syncFeedingHistory,
   heartbeat
 };

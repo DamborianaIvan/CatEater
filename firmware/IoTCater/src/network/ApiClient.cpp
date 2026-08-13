@@ -122,6 +122,40 @@ bool ApiClient::sendHeartbeat()
     return response.success && response.statusCode >= 200 && response.statusCode < 300;
 }
 
+bool ApiClient::syncFeedingEvent(const FeedingEvent& event)
+{
+    const String endpoint = "/feeders/history";
+
+    HttpHeaders headers;
+    headers.emplace_back("x-api-key", API_KEY);
+    headers.emplace_back("Content-Type", "application/json");
+
+    String source;
+
+    switch (event.source)
+    {
+        case FeedingSource::Physical:
+            source = "physical";
+            break;
+
+        case FeedingSource::Scheduled:
+            source = "scheduled";
+            break;
+
+        case FeedingSource::Remote:
+            source = "remote";
+            break;
+    }
+
+    String body = "{\"feederId\":\"" + _deviceInfo.getDeviceId() +
+                  "\",\"timestamp\":" + String(event.timestamp) +
+                  ",\"portions\":" + String(event.portions) + ",\"source\":\"" + source + "\"}";
+
+    HttpResponse response = _httpClient.post(buildUrl(endpoint), body, headers);
+
+    return response.success && response.statusCode >= 200 && response.statusCode < 300;
+}
+
 RegistrationResult ApiClient::registerDevice()
 {
     String body = buildRegistrationBody();
