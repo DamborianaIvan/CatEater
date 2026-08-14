@@ -3,7 +3,7 @@
 #include "ESP8266WiFi.h"
 #include "Arduino.h"
 #include "Firmware.h"
-#include "WifiServices.h"
+#include "services/WifiService.h"
 class DeviceInfo
 {
    public:

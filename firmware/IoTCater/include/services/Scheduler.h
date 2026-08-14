@@ -1,11 +1,11 @@
 #ifndef SCHEDULER_H
 #define SCHEDULER_H
 
-#include "TimeService.h"
-#include "SchedulerConstants.h"
-#include "FeedSchedule.h"
-#include "Configuration.h"
-#include "FeedingService.h"
+#include "services/TimeService.h"
+#include "services/FeedingService.h"
+#include "config/SchedulerConstants.h"
+#include "domain/FeedSchedule.h"
+#include "domain/Configuration.h"
 
 class Scheduler
 {

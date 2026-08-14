@@ -2,11 +2,11 @@
 #define WEB_SERVER_H
 
 #include <Arduino.h>
-#include "Motor.h"
+#include "hardware/Motor.h"
 #include <ESP8266WebServer.h>
-#include "WifiServices.h"
-#include "ConfigurationStorage.h"
-#include "Scheduler.h"
+#include "services/WifiService.h"
+#include "storage/ConfigurationStorage.h"
+#include "services/Scheduler.h"
 
 class WebServer
 {

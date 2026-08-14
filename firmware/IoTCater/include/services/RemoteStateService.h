@@ -3,8 +3,8 @@
 #include <Arduino.h>
 
 #include "network/ApiClient.h"
-#include "FeedingService.h"
-#include "WifiServices.h"
+#include "services/FeedingService.h"
+#include "services/WifiService.h"
 
 class RemoteStateService
 {

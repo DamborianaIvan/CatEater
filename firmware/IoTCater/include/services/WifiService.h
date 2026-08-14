@@ -1,6 +1,8 @@
 #ifndef WIFI_SERVICE_H
 #define WIFI_SERVICE_H
 #include <Arduino.h>
+#include <ESP8266WiFi.h>
+#include "Config.h"
 
 enum class ConnectionState
 {

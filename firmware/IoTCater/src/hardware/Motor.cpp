@@ -1,4 +1,4 @@
-#include "Motor.h"
+#include "hardware/Motor.h"
 
 Motor::Motor()
     : _stepper(AccelStepper::FULL4WIRE, PIN_IN1, PIN_IN3, PIN_IN2, PIN_IN4)

@@ -1,9 +1,9 @@
-#include "WebServer.h"
-#include "Pages.h"
-#include "WifiServices.h"
-#include "ConfigurationStorage.h"
+#include "web/WebServer.h"
+#include "web/Pages.h"
+#include "services/WifiService.h"
+#include "storage/ConfigurationStorage.h"
 #include <ArduinoJson.h>
-#include "Scheduler.h"
+#include "services/Scheduler.h"
 
 WebServer::WebServer(Motor& motor, WiFiService& wifi, Scheduler& scheduler,
                      Configuration& configuration, ConfigurationStorage& storage)

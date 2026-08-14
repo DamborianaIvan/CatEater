@@ -1,6 +1,4 @@
-#include "Config.h"
-#include "WifiServices.h"
-#include <ESP8266WiFi.h>
+#include "services/WifiService.h"
 
 WiFiService::WiFiService() {}
 

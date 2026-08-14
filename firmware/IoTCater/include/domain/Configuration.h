@@ -1,8 +1,8 @@
 #ifndef CONFIGURATION_H
 #define CONFIGURATION_H
 
-#include "FeedSchedule.h"
-#include "SchedulerConstants.h"
+#include "domain/FeedSchedule.h"
+#include "config/SchedulerConstants.h"
 
 struct Configuration
 {
@@ -10,6 +10,7 @@ struct Configuration
     static constexpr uint8_t DEFAULT_FEED_PORTIONS = 1;
     static constexpr uint8_t DEFAULT_SCHEDULE_HOUR = 9;
     static constexpr uint8_t DEFAULT_SCHEDULE_MINUTE = 0;
+
     Configuration();
 
     int stepsPerFeed;

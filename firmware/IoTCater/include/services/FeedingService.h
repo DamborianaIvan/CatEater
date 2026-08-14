@@ -1,10 +1,10 @@
 #pragma once
 
-#include "Motor.h"
-#include "FeedingEvent.h"
-#include "FeedingService.h"
-#include "FeedingHistoryService.h"
-#include "TimeService.h"
+#include "hardware/Motor.h"
+#include "domain/FeedingEvent.h"
+#include "services/FeedingService.h"
+#include "services/FeedingHistoryService.h"
+#include "services/TimeService.h"
 
 class FeedingService
 {

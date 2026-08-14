@@ -4,7 +4,7 @@
 #include <LittleFS.h>
 #include <vector>
 
-#include "FeedingEvent.h"
+#include "domain/FeedingEvent.h"
 
 class FeedingHistoryService
 {

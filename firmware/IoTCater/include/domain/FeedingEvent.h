@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Arduino.h>
-#include "FeedingSource.h"
+#include "services/FeedingSource.h"
 
 struct FeedingEvent
 {

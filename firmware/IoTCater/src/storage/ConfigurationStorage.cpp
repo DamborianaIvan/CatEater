@@ -1,4 +1,4 @@
-#include "ConfigurationStorage.h"
+#include "storage/ConfigurationStorage.h"
 #include <EEPROM.h>
 
 // EEPROM es UNO de los sitemas de almacenamiento que tiene nodemcu

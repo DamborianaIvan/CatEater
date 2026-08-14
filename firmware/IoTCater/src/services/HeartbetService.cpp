@@ -1,4 +1,4 @@
-#include "HeartbetServices.h"
+#include "services/HeartbetService.h"
 
 HeartbeatService::HeartbeatService(ApiClient& apiClient) : _apiClient(apiClient) {}
 

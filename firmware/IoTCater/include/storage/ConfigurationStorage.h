@@ -1,6 +1,6 @@
 #ifndef CONFIGURATION_STORAGE_H
 #define CONFIGURATION_STORAGE_H
-#include "Configuration.h"
+#include "domain/Configuration.h"
 #include <EEPROM.h>
 
 class ConfigurationStorage

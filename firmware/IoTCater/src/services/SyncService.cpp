@@ -1,4 +1,4 @@
-#include "SyncService.h"
+#include "services/SyncService.h"
 
 SyncService::SyncService(ApiClient& apiClient, FeedingHistoryService& historyService,
                          TimeService& timeService)

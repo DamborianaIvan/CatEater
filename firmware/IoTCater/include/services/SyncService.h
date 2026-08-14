@@ -1,8 +1,8 @@
 #pragma once
 
 #include "network/ApiClient.h"
-#include "FeedingHistoryService.h"
-#include "TimeService.h"
+#include "services/FeedingHistoryService.h"
+#include "services/TimeService.h"
 
 class SyncService
 {

@@ -5,7 +5,7 @@
 #include "device/DeviceInfo.h"
 #include "network/HttpClient.h"
 #include "network/FeederInfo.h"
-#include "FeedingEvent.h"
+#include "domain/FeedingEvent.h"
 
 enum class RegistrationResult
 {
@@ -35,7 +35,7 @@ class ApiClient
 
     static constexpr char CONTENT_TYPE[] = "application/json";
     static constexpr char API_KEY[] = "ExCECoLysoco";
-    static constexpr char BASE_URL[] = "http://192.168.1.34:5000";
+    static constexpr char BASE_URL[] = "http://192.168.1.33:5000";
 
     static constexpr char REGISTER_ENDPOINT[] = "/feeders/register";
 

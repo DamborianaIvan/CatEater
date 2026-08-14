@@ -1,4 +1,4 @@
-#include "Configuration.h"
+#include "domain/Configuration.h"
 
 Configuration::Configuration() : stepsPerFeed(DEFAULT_STEPS_PER_FEED)
 {
