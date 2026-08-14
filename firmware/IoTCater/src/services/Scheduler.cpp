@@ -49,7 +49,7 @@ bool Scheduler::isScheduledTime(const FeedSchedule& schedule) const
 
 bool Scheduler::wasExecutedThisMinute() const
 {
-    return _timeService.getHour() == _lastExecutionHour &&
+    return _executionRegistered && _timeService.getHour() == _lastExecutionHour &&
            _timeService.getMinute() == _lastExecutionMinute;
 }
 
@@ -57,6 +57,7 @@ void Scheduler::markExecution()
 {
     _lastExecutionHour = _timeService.getHour();
     _lastExecutionMinute = _timeService.getMinute();
+    _executionRegistered = true;
 }
 
 bool Scheduler::isValidSchedule(int hour, int minute) const

@@ -8,7 +8,6 @@ FeedingService::FeedingService(Motor& motor, FeedingHistoryService& historyServi
 
 bool FeedingService::feed(int portions, FeedingSource source)
 {
-    String eventId = String(ESP.getChipId(), HEX) + "-" + String(micros(), HEX);
     if (portions <= 0)
     {
         return false;
@@ -17,6 +16,13 @@ bool FeedingService::feed(int portions, FeedingSource source)
     if (!_motor.feed(portions))
     {
         return false;
+    }
+
+    const String eventId = _historyService.createEventId();
+    if (eventId.isEmpty())
+    {
+        Serial.println("[FeedingService] Advertencia: no se pudo generar eventId; historial omitido.");
+        return true;
     }
 
     time_t timestamp = _timeService.getTimestamp();

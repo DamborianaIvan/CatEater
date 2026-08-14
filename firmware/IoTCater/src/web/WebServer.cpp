@@ -5,10 +5,12 @@
 #include <ArduinoJson.h>
 #include "services/Scheduler.h"
 
-WebServer::WebServer(Motor& motor, WiFiService& wifi, Scheduler& scheduler,
+WebServer::WebServer(Motor& motor, WiFiService& wifi, FeedingService& feedingService,
+                     Scheduler& scheduler,
                      Configuration& configuration, ConfigurationStorage& storage)
     : _motor(motor),
       _wifi(wifi),
+      _feedingService(feedingService),
       _storage(storage),
       _configuration(configuration),
       _scheduler(scheduler)
@@ -54,7 +56,7 @@ void WebServer::handleNotFound()
 
 void WebServer::handleFeed()
 {
-    bool accepted = _motor.feed();
+    const bool accepted = _feedingService.feed(1, FeedingSource::Physical);
 
     if (accepted)
     {

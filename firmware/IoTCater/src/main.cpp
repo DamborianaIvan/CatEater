@@ -30,10 +30,10 @@ ConfigurationStorage storage;
 DeviceInfo deviceInfo(wifi);
 ApiClient apiClient(httpClient, deviceInfo);
 RemoteStateService remoteStateService(apiClient, feedingService, wifi);
-WebServer webServer(motor, wifi, scheduler, configuration, storage);
-HeartbeatService heartbeatService(apiClient);
+WebServer webServer(motor, wifi, feedingService, scheduler, configuration, storage);
+HeartbeatService heartbeatService(apiClient, wifi);
 ButtonService buttonService(feedingService, D0);
-SyncService syncService(apiClient, feedingHistoryService, timeService);
+SyncService syncService(apiClient, feedingHistoryService, timeService, wifi);
 
 void handleWifiConnected()
 {
@@ -99,6 +99,7 @@ void setup()
     webServer.begin();
     heartbeatService.begin();
     feedingHistoryService.begin();
+    syncService.begin();
 
     const auto history = feedingHistoryService.getHistory();
 

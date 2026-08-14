@@ -5,13 +5,15 @@
 #include "hardware/Motor.h"
 #include <ESP8266WebServer.h>
 #include "services/WifiService.h"
+#include "services/FeedingService.h"
 #include "storage/ConfigurationStorage.h"
 #include "services/Scheduler.h"
 
 class WebServer
 {
    public:
-    explicit WebServer(Motor& motor, WiFiService& wifi, Scheduler& scheduler,
+    explicit WebServer(Motor& motor, WiFiService& wifi, FeedingService& feedingService,
+                       Scheduler& scheduler,
                        Configuration& configuration, ConfigurationStorage& storage);
 
     void begin();
@@ -20,6 +22,7 @@ class WebServer
    private:
     Motor& _motor;
     WiFiService& _wifi;
+    FeedingService& _feedingService;
     ConfigurationStorage& _storage;
     ESP8266WebServer _server{80};
     Configuration& _configuration;

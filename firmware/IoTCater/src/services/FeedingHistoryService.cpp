@@ -10,9 +10,77 @@ bool FeedingHistoryService::begin()
         return false;
     }
 
+    if (!loadEventSequence())
+    {
+        Serial.println("[FeedingHistoryService] Error cargando secuencia de eventos.");
+        return false;
+    }
+
     Serial.println("[FeedingHistoryService] LittleFS iniciado.");
 
     return true;
+}
+
+String FeedingHistoryService::createEventId()
+{
+    if (!_eventIdGenerationAvailable || _eventSequence == UINT32_MAX)
+    {
+        return "";
+    }
+
+    const uint32_t nextSequence = _eventSequence + 1;
+
+    if (!saveEventSequence(nextSequence))
+    {
+        Serial.println("[FeedingHistoryService] Error guardando secuencia de eventos.");
+        return "";
+    }
+
+    _eventSequence = nextSequence;
+    return String(ESP.getChipId(), HEX) + "-" + String(_eventSequence);
+}
+
+bool FeedingHistoryService::loadEventSequence()
+{
+    if (!LittleFS.exists(EVENT_SEQUENCE_FILE))
+    {
+        _eventSequence = 0;
+        _eventIdGenerationAvailable = true;
+        return true;
+    }
+
+    File file = LittleFS.open(EVENT_SEQUENCE_FILE, "r");
+    if (!file)
+    {
+        return false;
+    }
+
+    const String value = file.readString();
+    file.close();
+
+    char* end = nullptr;
+    const unsigned long sequence = strtoul(value.c_str(), &end, 10);
+    if (end == value.c_str() || *end != '\0')
+    {
+        return false;
+    }
+
+    _eventSequence = static_cast<uint32_t>(sequence);
+    _eventIdGenerationAvailable = true;
+    return true;
+}
+
+bool FeedingHistoryService::saveEventSequence(uint32_t sequence)
+{
+    File file = LittleFS.open(EVENT_SEQUENCE_FILE, "w");
+    if (!file)
+    {
+        return false;
+    }
+
+    const size_t written = file.print(sequence);
+    file.close();
+    return written > 0;
 }
 
 bool FeedingHistoryService::trimHistory()

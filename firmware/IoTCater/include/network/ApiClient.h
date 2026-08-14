@@ -38,6 +38,9 @@ class ApiClient
     static constexpr char BASE_URL[] = "http://192.168.1.33:5000";
 
     static constexpr char REGISTER_ENDPOINT[] = "/feeders/register";
+    static constexpr uint16_t MOTOR_STATE_TIMEOUT_MS = 500;
+    static constexpr uint16_t EVENT_SYNC_TIMEOUT_MS = 1000;
+    static constexpr uint16_t BACKGROUND_TIMEOUT_MS = 1000;
 
     String buildUrl(const String& endpoint) const;
     String buildRegistrationBody() const;

@@ -10,6 +10,7 @@ class FeedingHistoryService
 {
    public:
     bool begin();
+    String createEventId();
     bool save(const FeedingEvent& event);
     bool markAsSynced(const String& eventId);
     bool trimHistory();
@@ -19,5 +20,12 @@ class FeedingHistoryService
 
    private:
     static constexpr const char* HISTORY_FILE = "/feeding_history.json";
+    static constexpr const char* EVENT_SEQUENCE_FILE = "/feeding_event_sequence.txt";
     static constexpr size_t MAX_HISTORY_EVENTS = 100;
+
+    uint32_t _eventSequence = 0;
+    bool _eventIdGenerationAvailable = false;
+
+    bool loadEventSequence();
+    bool saveEventSequence(uint32_t sequence);
 };

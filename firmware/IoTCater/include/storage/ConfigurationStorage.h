@@ -19,6 +19,8 @@ class ConfigurationStorage
     static constexpr int CONFIG_ADDRESS = 1;
 
     static constexpr uint8_t CONFIG_SIGNATURE = 0xA5;
+
+    bool isValidConfiguration(const Configuration& configuration) const;
 };
 
 #endif

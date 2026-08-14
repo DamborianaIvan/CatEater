@@ -1,8 +1,11 @@
 #include "services/SyncService.h"
 
 SyncService::SyncService(ApiClient& apiClient, FeedingHistoryService& historyService,
-                         TimeService& timeService)
-    : _apiClient(apiClient), _historyService(historyService), _timeService(timeService)
+                         TimeService& timeService, WiFiService& wifiService)
+    : _apiClient(apiClient),
+      _historyService(historyService),
+      _timeService(timeService),
+      _wifiService(wifiService)
 {
 }
 
@@ -13,6 +16,11 @@ void SyncService::begin()
 
 void SyncService::update()
 {
+    if (!_wifiService.isConnected())
+    {
+        return;
+    }
+
     if (millis() - _lastSync < SYNC_INTERVAL)
     {
         return;

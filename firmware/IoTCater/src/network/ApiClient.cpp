@@ -69,7 +69,7 @@ bool ApiClient::getMotorState(bool& motorState, int& portions, String& commandId
 
     headers.emplace_back("x-api-key", API_KEY);
 
-    HttpResponse response = _httpClient.get(buildUrl(endpoint), headers, 500);
+    HttpResponse response = _httpClient.get(buildUrl(endpoint), headers, MOTOR_STATE_TIMEOUT_MS);
     if (!response.success || response.statusCode != 200)
     {
         return false;
@@ -106,7 +106,8 @@ bool ApiClient::completeMotorCommand(const String& commandId)
     String body;
     serializeJson(document, body);
 
-    HttpResponse response = _httpClient.post(buildUrl(endpoint), body, headers);
+    HttpResponse response =
+        _httpClient.post(buildUrl(endpoint), body, headers, BACKGROUND_TIMEOUT_MS);
     return response.success && response.statusCode >= 200 && response.statusCode < 300;
 }
 
@@ -120,7 +121,8 @@ bool ApiClient::sendHeartbeat()
 
     const String body = "{\"feederId\":\"" + _deviceInfo.getDeviceId() + "\"}";
 
-    HttpResponse response = _httpClient.post(buildUrl(endpoint), body, headers);
+    HttpResponse response =
+        _httpClient.post(buildUrl(endpoint), body, headers, BACKGROUND_TIMEOUT_MS);
 
     return response.success && response.statusCode >= 200 && response.statusCode < 300;
 }
@@ -160,7 +162,7 @@ bool ApiClient::syncFeedingEvent(const FeedingEvent& event)
     String body;
     serializeJson(document, body);
 
-    HttpResponse response = _httpClient.post(buildUrl(endpoint), body, headers, 1000);
+    HttpResponse response = _httpClient.post(buildUrl(endpoint), body, headers, EVENT_SYNC_TIMEOUT_MS);
 
     return response.success && response.statusCode >= 200 && response.statusCode < 300;
 }

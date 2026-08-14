@@ -1,6 +1,9 @@
 #include "services/HeartbetService.h"
 
-HeartbeatService::HeartbeatService(ApiClient& apiClient) : _apiClient(apiClient) {}
+HeartbeatService::HeartbeatService(ApiClient& apiClient, WiFiService& wifiService)
+    : _apiClient(apiClient), _wifiService(wifiService)
+{
+}
 
 void HeartbeatService::begin()
 {
@@ -9,6 +12,11 @@ void HeartbeatService::begin()
 
 void HeartbeatService::update()
 {
+    if (!_wifiService.isConnected())
+    {
+        return;
+    }
+
     if (millis() - _lastHeartbeat < HEARTBEAT_INTERVAL)
     {
         return;
