@@ -1,4 +1,5 @@
 #include "services/FeedingService.h"
+#include "domain/Configuration.h"
 
 FeedingService::FeedingService(Motor& motor, FeedingHistoryService& historyService,
                                TimeService& timeService)
@@ -8,7 +9,7 @@ FeedingService::FeedingService(Motor& motor, FeedingHistoryService& historyServi
 
 bool FeedingService::feed(int portions, FeedingSource source)
 {
-    if (portions <= 0)
+    if (!Configuration::isValidPortions(portions))
     {
         return false;
     }

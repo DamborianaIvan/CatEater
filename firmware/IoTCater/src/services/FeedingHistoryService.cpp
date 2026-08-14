@@ -1,6 +1,141 @@
 #include "services/FeedingHistoryService.h"
 #include <ArduinoJson.h>
 
+bool FeedingHistoryService::isValidHistoryFile(const char* path) const
+{
+    if (!LittleFS.exists(path))
+    {
+        return false;
+    }
+
+    File file = LittleFS.open(path, "r");
+    if (!file)
+    {
+        return false;
+    }
+
+    JsonDocument document;
+    const DeserializationError error = deserializeJson(document, file);
+    file.close();
+    return !error && document.is<JsonArray>();
+}
+
+bool FeedingHistoryService::preserveCorruptHistoryFile(const char* path, const char* preservedPath)
+{
+    if (!LittleFS.exists(path))
+    {
+        return true;
+    }
+
+    if (LittleFS.exists(preservedPath))
+    {
+        Serial.println("[FeedingHistoryService] No se reemplaza un historial corrupto ya preservado.");
+        return false;
+    }
+
+    return LittleFS.rename(path, preservedPath);
+}
+
+bool FeedingHistoryService::replaceHistoryWith(const char* replacementPath)
+{
+    if (LittleFS.exists(HISTORY_FILE))
+    {
+        if (LittleFS.exists(HISTORY_BACKUP_FILE) && !LittleFS.remove(HISTORY_BACKUP_FILE))
+        {
+            return false;
+        }
+
+        if (!LittleFS.rename(HISTORY_FILE, HISTORY_BACKUP_FILE))
+        {
+            return false;
+        }
+    }
+
+    if (LittleFS.rename(replacementPath, HISTORY_FILE))
+    {
+        return true;
+    }
+
+    if (LittleFS.exists(HISTORY_BACKUP_FILE))
+    {
+        LittleFS.rename(HISTORY_BACKUP_FILE, HISTORY_FILE);
+    }
+    return false;
+}
+
+bool FeedingHistoryService::recoverHistoryFiles()
+{
+    const bool historyValid = isValidHistoryFile(HISTORY_FILE);
+    const bool temporaryValid = isValidHistoryFile(HISTORY_TEMP_FILE);
+    const bool backupValid = isValidHistoryFile(HISTORY_BACKUP_FILE);
+
+    if (temporaryValid)
+    {
+        if (!historyValid && !preserveCorruptHistoryFile(HISTORY_FILE, HISTORY_CORRUPT_FILE))
+        {
+            return false;
+        }
+
+        if (replaceHistoryWith(HISTORY_TEMP_FILE))
+        {
+            Serial.println("[FeedingHistoryService] Historial recuperado desde temporal.");
+            return true;
+        }
+
+        Serial.println("[FeedingHistoryService] Error recuperando historial temporal.");
+        return false;
+    }
+
+    if (historyValid)
+    {
+        return true;
+    }
+
+    if (!LittleFS.exists(HISTORY_FILE))
+    {
+        if (backupValid && LittleFS.rename(HISTORY_BACKUP_FILE, HISTORY_FILE))
+        {
+            Serial.println("[FeedingHistoryService] Historial recuperado desde backup.");
+        }
+        return true;
+    }
+
+    if (!preserveCorruptHistoryFile(HISTORY_FILE, HISTORY_CORRUPT_FILE))
+    {
+        return false;
+    }
+
+    if (backupValid && LittleFS.rename(HISTORY_BACKUP_FILE, HISTORY_FILE))
+    {
+        Serial.println("[FeedingHistoryService] Historial corrupto recuperado desde backup.");
+    }
+    else
+    {
+        Serial.println("[FeedingHistoryService] Historial corrupto preservado; se inicia cola nueva.");
+    }
+    return true;
+}
+
+bool FeedingHistoryService::writeHistoryDocument(JsonDocument& document)
+{
+    File file = LittleFS.open(HISTORY_TEMP_FILE, "w");
+    if (!file)
+    {
+        return false;
+    }
+
+    const size_t written = serializeJson(document, file);
+    file.flush();
+    file.close();
+
+    if (written == 0 || !isValidHistoryFile(HISTORY_TEMP_FILE))
+    {
+        return false;
+    }
+
+    return replaceHistoryWith(HISTORY_TEMP_FILE);
+}
+
 bool FeedingHistoryService::begin()
 {
     if (!LittleFS.begin())
@@ -13,6 +148,12 @@ bool FeedingHistoryService::begin()
     if (!loadEventSequence())
     {
         Serial.println("[FeedingHistoryService] Error cargando secuencia de eventos.");
+        return false;
+    }
+
+    if (!recoverHistoryFiles())
+    {
+        Serial.println("[FeedingHistoryService] Error recuperando historial.");
         return false;
     }
 
@@ -134,16 +275,11 @@ bool FeedingHistoryService::trimHistory()
         history.remove(oldestSyncedIndex);
     }
 
-    file = LittleFS.open(HISTORY_FILE, "w");
-
-    if (!file)
+    if (!writeHistoryDocument(document))
     {
         Serial.println("[FeedingHistoryService] Error guardando historial limpio.");
         return false;
     }
-
-    serializeJson(document, file);
-    file.close();
 
     return true;
 }
@@ -274,15 +410,10 @@ bool FeedingHistoryService::markAsSynced(const String& eventId)
         return false;
     }
 
-    file = LittleFS.open(HISTORY_FILE, "w");
-
-    if (!file)
+    if (!writeHistoryDocument(document))
     {
         return false;
     }
-
-    serializeJson(document, file);
-    file.close();
     Serial.println("[FeedingHistoryService] Evento marcado como sincronizado.");
     return true;
 }
@@ -343,17 +474,11 @@ bool FeedingHistoryService::save(const FeedingEvent& event)
             break;
     }
 
-    File file = LittleFS.open(HISTORY_FILE, "w");
-
-    if (!file)
+    if (!writeHistoryDocument(document))
     {
-        Serial.println("[FeedingHistoryService] Error abriendo historial.");
-
+        Serial.println("[FeedingHistoryService] Error guardando historial.");
         return false;
     }
-
-    serializeJson(document, file);
-    file.close();
 
     trimHistory();
 

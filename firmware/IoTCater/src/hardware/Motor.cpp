@@ -1,4 +1,5 @@
 #include "hardware/Motor.h"
+#include "domain/Configuration.h"
 
 Motor::Motor()
     : _stepper(AccelStepper::FULL4WIRE, PIN_IN1, PIN_IN3, PIN_IN2, PIN_IN4)
@@ -32,7 +33,7 @@ bool Motor::feed(int portions)
         Serial.println("[Motor] El motor ya esta alimentando.");
         return false;
     }
-    if (portions <= 0)
+    if (!Configuration::isValidPortions(portions))
     {
         Serial.println("[Motor] Cantidad de porciones invalida.");
         return false;
@@ -45,7 +46,7 @@ bool Motor::feed(int portions)
 }
 bool Motor::setStepsPerFeed(int stepsPerFeed)
 {
-    if (stepsPerFeed <= 0)
+    if (!Configuration::isValidStepsPerFeed(stepsPerFeed))
     {
         return false;
     }

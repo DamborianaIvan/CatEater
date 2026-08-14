@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Arduino.h>
+#include <ArduinoJson.h>
 #include <LittleFS.h>
 #include <vector>
 
@@ -20,6 +21,9 @@ class FeedingHistoryService
 
    private:
     static constexpr const char* HISTORY_FILE = "/feeding_history.json";
+    static constexpr const char* HISTORY_TEMP_FILE = "/feeding_history.tmp";
+    static constexpr const char* HISTORY_BACKUP_FILE = "/feeding_history.bak";
+    static constexpr const char* HISTORY_CORRUPT_FILE = "/feeding_history.corrupt";
     static constexpr const char* EVENT_SEQUENCE_FILE = "/feeding_event_sequence.txt";
     static constexpr size_t MAX_HISTORY_EVENTS = 100;
 
@@ -28,4 +32,9 @@ class FeedingHistoryService
 
     bool loadEventSequence();
     bool saveEventSequence(uint32_t sequence);
+    bool recoverHistoryFiles();
+    bool isValidHistoryFile(const char* path) const;
+    bool preserveCorruptHistoryFile(const char* path, const char* preservedPath);
+    bool replaceHistoryWith(const char* replacementPath);
+    bool writeHistoryDocument(JsonDocument& document);
 };

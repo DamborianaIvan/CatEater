@@ -120,7 +120,8 @@ void WebServer::handleUpdateConfig()
         return;
     }
 
-    if (!doc["stepsPerFeed"].is<int>())
+    if (!doc["stepsPerFeed"].is<int>() ||
+        !Configuration::isValidStepsPerFeed(doc["stepsPerFeed"].as<int>()))
     {
         _server.send(400, "application/json",
                      R"({
@@ -196,7 +197,7 @@ void WebServer::handleUpdateConfig()
             return;
         }
 
-        if (portions <= 0)
+        if (!Configuration::isValidPortions(portions))
         {
             _server.send(400, "application/json",
                          R"({
@@ -241,24 +242,24 @@ void WebServer::handleUpdateConfig()
         }
     }
 
-    if (!_motor.setStepsPerFeed(newConfiguration.stepsPerFeed))
+    if (!_storage.saveConfiguration(newConfiguration))
     {
-        _server.send(400, "application/json",
+        _server.send(500, "application/json",
                      R"({
                 "success": false,
-                "message": "Invalid stepsPerFeed"
+                "message": "Failed to save configuration"
             })");
         return;
     }
 
     _configuration = newConfiguration;
 
-    if (!_storage.saveConfiguration(_configuration))
+    if (!_motor.setStepsPerFeed(_configuration.stepsPerFeed))
     {
         _server.send(500, "application/json",
                      R"({
                 "success": false,
-                "message": "Failed to save configuration"
+                "message": "Failed to apply configuration"
             })");
         return;
     }
@@ -272,7 +273,8 @@ void WebServer::handleUpdateConfig()
 
 bool WebServer::isValidSchedule(int hour, int minute, int portions) const
 {
-    return hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59 && portions > 0;
+    return hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59 &&
+           Configuration::isValidPortions(portions);
 }
 
 void WebServer::handleGetConfiguration()

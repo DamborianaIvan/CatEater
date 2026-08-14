@@ -12,3 +12,13 @@ void Configuration::initializeDefaultSchedules()
     schedules[0].portions = DEFAULT_FEED_PORTIONS;
     schedules[0].enabled = true;
 }
+
+bool Configuration::isValidStepsPerFeed(int stepsPerFeed)
+{
+    return stepsPerFeed >= MIN_STEPS_PER_FEED && stepsPerFeed <= MAX_STEPS_PER_FEED;
+}
+
+bool Configuration::isValidPortions(int portions)
+{
+    return portions >= MIN_FEED_PORTIONS && portions <= MAX_FEED_PORTIONS;
+}
