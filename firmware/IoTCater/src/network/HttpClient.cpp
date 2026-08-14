@@ -5,17 +5,18 @@ HttpClient::HttpClient()
     _secureClient.setInsecure();
 }
 
-HttpResponse HttpClient::get(const String& url, const HttpHeaders& headers)
+HttpResponse HttpClient::get(const String& url, const HttpHeaders& headers, uint16_t timeoutMs)
 {
-    return executeRequest(url, HttpMethod::Get, "", headers);
+    return executeRequest(url, HttpMethod::Get, "", headers, timeoutMs);
 }
 
-HttpResponse HttpClient::post(const String& url, const String& body, HttpHeaders headers)
+HttpResponse HttpClient::post(const String& url, const String& body, HttpHeaders headers,
+                              uint16_t timeoutMs)
 {
-    return executeRequest(url, HttpMethod::Post, body, headers);
+    return executeRequest(url, HttpMethod::Post, body, headers, timeoutMs);
 }
 HttpResponse HttpClient::executeRequest(const String& url, HttpMethod method, const String& body,
-                                        const HttpHeaders& headers)
+                                        const HttpHeaders& headers, uint16_t timeoutMs)
 {
     HttpResponse response;
 
@@ -37,7 +38,7 @@ HttpResponse HttpClient::executeRequest(const String& url, HttpMethod method, co
         return response;
     }
 
-    http.setTimeout(DEFAULT_TIMEOUT_MS);
+    http.setTimeout(timeoutMs);
 
     for (const auto& header : headers)
     {

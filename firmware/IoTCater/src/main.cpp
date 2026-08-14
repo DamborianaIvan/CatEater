@@ -29,7 +29,7 @@ Scheduler scheduler(timeService, feedingService, configuration);
 ConfigurationStorage storage;
 DeviceInfo deviceInfo(wifi);
 ApiClient apiClient(httpClient, deviceInfo);
-RemoteStateService remoteStateService(apiClient, feedingService);
+RemoteStateService remoteStateService(apiClient, feedingService, wifi);
 WebServer webServer(motor, wifi, scheduler, configuration, storage);
 HeartbeatService heartbeatService(apiClient);
 ButtonService buttonService(feedingService, D0);
@@ -138,17 +138,20 @@ void setup()
 
 void loop()
 {
+    motor.update();
+    buttonService.update();
+
     wifi.update();
     if (hasWifiJustConnected())
     {
         handleWifiConnected();
     }
+
     timeService.update();
+
     scheduler.update();
-    motor.update();
     remoteStateService.update();
     webServer.update();
-    heartbeatService.update();
-    buttonService.update();
-    syncService.update();
+    // heartbeatService.update();
+    // syncService.update();
 }

@@ -15,8 +15,11 @@ class HttpClient
    public:
     HttpClient();
 
-    HttpResponse get(const String& url, const HttpHeaders& headers = {});
-    HttpResponse post(const String& url, const String& body, HttpHeaders headers = {});
+    HttpResponse get(const String& url, const HttpHeaders& headers = {},
+                     uint16_t timeoutMs = DEFAULT_TIMEOUT_MS);
+
+    HttpResponse post(const String& url, const String& body, HttpHeaders headers = {},
+                      uint16_t timeoutMs = DEFAULT_TIMEOUT_MS);
 
    private:
     static constexpr uint16_t DEFAULT_TIMEOUT_MS = 5000;
@@ -25,5 +28,5 @@ class HttpClient
     BearSSL::WiFiClientSecure _secureClient;
 
     HttpResponse executeRequest(const String& url, HttpMethod method, const String& body,
-                                const HttpHeaders& headers);
+                                const HttpHeaders& headers, uint16_t timeoutMs);
 };

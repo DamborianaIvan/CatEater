@@ -4,17 +4,19 @@
 
 #include "network/ApiClient.h"
 #include "FeedingService.h"
+#include "WifiServices.h"
 
 class RemoteStateService
 {
    public:
-    explicit RemoteStateService(ApiClient& apiClient, FeedingService& _feedingService);
-
+    explicit RemoteStateService(ApiClient& apiClient, FeedingService& feedingService,
+                                WiFiService& wifiService);
     void update();
 
    private:
     ApiClient& _apiClient;
     FeedingService& _feedingService;
+    WiFiService& _wifiService;
 
     static constexpr unsigned long CONFIRMATION_RETRY_INTERVAL = 5000;
 

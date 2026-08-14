@@ -69,7 +69,7 @@ bool ApiClient::getMotorState(bool& motorState, int& portions, String& commandId
 
     headers.emplace_back("x-api-key", API_KEY);
 
-    HttpResponse response = _httpClient.get(buildUrl(endpoint), headers);
+    HttpResponse response = _httpClient.get(buildUrl(endpoint), headers, 500);
     if (!response.success || response.statusCode != 200)
     {
         return false;

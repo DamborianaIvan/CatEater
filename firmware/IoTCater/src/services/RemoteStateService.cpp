@@ -1,12 +1,18 @@
 #include "services/RemoteStateService.h"
 
-RemoteStateService::RemoteStateService(ApiClient& apiClient, FeedingService& feedingService)
-    : _apiClient(apiClient), _feedingService(feedingService)
+RemoteStateService::RemoteStateService(ApiClient& apiClient, FeedingService& feedingService,
+                                       WiFiService& wifiService)
+    : _apiClient(apiClient), _feedingService(feedingService), _wifiService(wifiService)
 {
 }
 
 void RemoteStateService::update()
 {
+    if (!_wifiService.isConnected())
+    {
+        return;
+    }
+
     if (millis() - _lastRequest < POLL_INTERVAL)
     {
         return;
