@@ -160,7 +160,7 @@ bool ApiClient::syncFeedingEvent(const FeedingEvent& event)
     String body;
     serializeJson(document, body);
 
-    HttpResponse response = _httpClient.post(buildUrl(endpoint), body, headers);
+    HttpResponse response = _httpClient.post(buildUrl(endpoint), body, headers, 1000);
 
     return response.success && response.statusCode >= 200 && response.statusCode < 300;
 }
