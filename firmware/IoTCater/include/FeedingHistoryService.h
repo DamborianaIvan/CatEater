@@ -2,8 +2,9 @@
 
 #include <Arduino.h>
 #include <LittleFS.h>
-#include "FeedingEvent.h"
 #include <vector>
+
+#include "FeedingEvent.h"
 
 class FeedingHistoryService
 {
@@ -11,11 +12,12 @@ class FeedingHistoryService
     bool begin();
     bool save(const FeedingEvent& event);
     bool markAsSynced(const String& eventId);
-    bool updatePendingTimestamps(time_t timestamp);
+    bool trimHistory();
 
     std::vector<FeedingEvent> getHistory();
     std::vector<FeedingEvent> getPendingEvents();
 
    private:
     static constexpr const char* HISTORY_FILE = "/feeding_history.json";
+    static constexpr size_t MAX_HISTORY_EVENTS = 100;
 };

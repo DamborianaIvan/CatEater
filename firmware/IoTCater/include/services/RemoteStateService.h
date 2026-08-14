@@ -25,6 +25,7 @@ class RemoteStateService
 
     bool motorState = false;
     bool _remoteFeedInProgress = false;
+    bool _initialized = false;
 
     String _activeCommandId;
     String _lastCommandId;

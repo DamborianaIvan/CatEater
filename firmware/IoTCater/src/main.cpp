@@ -152,6 +152,6 @@ void loop()
     scheduler.update();
     remoteStateService.update();
     webServer.update();
-    // heartbeatService.update();
-    // syncService.update();
+    heartbeatService.update();
+    syncService.update();
 }

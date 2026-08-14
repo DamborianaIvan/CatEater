@@ -35,6 +35,13 @@ void RemoteStateService::pollMotorState()
         return;
     }
 
+    if (!_initialized)
+    {
+        _lastCommandId = commandId;
+        _initialized = true;
+
+        return;
+    }
     if (motorState && !commandId.isEmpty() && commandId != _lastCommandId)
     {
         Serial.print("[RemoteStateService] Nueva orden recibida. ID: ");

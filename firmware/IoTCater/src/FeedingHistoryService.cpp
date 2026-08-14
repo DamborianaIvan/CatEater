@@ -15,6 +15,71 @@ bool FeedingHistoryService::begin()
     return true;
 }
 
+bool FeedingHistoryService::trimHistory()
+{
+    if (!LittleFS.exists(HISTORY_FILE))
+    {
+        return true;
+    }
+
+    File file = LittleFS.open(HISTORY_FILE, "r");
+
+    if (!file)
+    {
+        Serial.println("[FeedingHistoryService] Error abriendo historial para limpieza.");
+        return false;
+    }
+
+    JsonDocument document;
+
+    if (deserializeJson(document, file))
+    {
+        file.close();
+
+        Serial.println("[FeedingHistoryService] Error leyendo historial para limpieza.");
+
+        return false;
+    }
+
+    file.close();
+
+    JsonArray history = document.as<JsonArray>();
+
+    while (history.size() > MAX_HISTORY_EVENTS)
+    {
+        int oldestSyncedIndex = -1;
+
+        for (size_t i = 0; i < history.size(); ++i)
+        {
+            if (history[i]["synced"] | false)
+            {
+                oldestSyncedIndex = static_cast<int>(i);
+                break;
+            }
+        }
+
+        if (oldestSyncedIndex < 0)
+        {
+            return false;
+        }
+
+        history.remove(oldestSyncedIndex);
+    }
+
+    file = LittleFS.open(HISTORY_FILE, "w");
+
+    if (!file)
+    {
+        Serial.println("[FeedingHistoryService] Error guardando historial limpio.");
+        return false;
+    }
+
+    serializeJson(document, file);
+    file.close();
+
+    return true;
+}
+
 std::vector<FeedingEvent> FeedingHistoryService::getHistory()
 {
     std::vector<FeedingEvent> history;
@@ -221,6 +286,8 @@ bool FeedingHistoryService::save(const FeedingEvent& event)
 
     serializeJson(document, file);
     file.close();
+
+    trimHistory();
 
     return true;
 }
