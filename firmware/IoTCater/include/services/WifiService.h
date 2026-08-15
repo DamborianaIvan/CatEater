@@ -2,7 +2,6 @@
 #define WIFI_SERVICE_H
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
-#include "Config.h"
 
 enum class ConnectionState
 {
@@ -16,7 +15,8 @@ class WiFiService
    public:
     WiFiService();
 
-    void begin(const char* ssid, const char* password);
+    void begin(const String& ssid, const String& password, bool keepAccessPoint = false);
+    void disconnect(bool eraseStoredCredentials = false);
     void update();
 
     bool isConnected() const;
@@ -29,8 +29,8 @@ class WiFiService
    private:
     ConnectionState _state = ConnectionState::Disconnected;
 
-    const char* _ssid = nullptr;
-    const char* _password = nullptr;
+    String _ssid;
+    String _password;
 
     unsigned long _lastReconnectAttempt = 0;
 

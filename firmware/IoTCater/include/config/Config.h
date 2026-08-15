@@ -1,7 +1,3 @@
-#ifndef CONFIG_H
-#define CONFIG_H
+#pragma once
 
-constexpr char WIFI_SSID[] = "Gaston";
-constexpr char WIFI_PASSWORD[] = "2266422529";
-
-#endif
+// WiFi credentials are provisioned by the user and are never compiled into the firmware.

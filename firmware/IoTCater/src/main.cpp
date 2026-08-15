@@ -1,10 +1,11 @@
 #include <Arduino.h>
 #include "hardware/Motor.h"
-#include "config/Config.h"
 #include "services/WifiService.h"
 #include "web/WebServer.h"
 #include "storage/ConfigurationStorage.h"
 #include "services/TimeService.h"
+#include "services/ProvisioningService.h"
+#include "storage/WifiCredentialsStorage.h"
 #include "services/Scheduler.h"
 #include "domain/Configuration.h"
 #include "device/DeviceInfo.h"
@@ -27,6 +28,7 @@ HttpClient httpClient;
 Configuration configuration;
 Scheduler scheduler(timeService, feedingService, configuration);
 ConfigurationStorage storage;
+WifiCredentialsStorage wifiCredentialsStorage;
 DeviceInfo deviceInfo(wifi);
 ApiClient apiClient(httpClient, deviceInfo);
 RemoteStateService remoteStateService(apiClient, feedingService, wifi);
@@ -34,6 +36,7 @@ WebServer webServer(motor, wifi, feedingService, scheduler, configuration, stora
 HeartbeatService heartbeatService(apiClient, wifi);
 ButtonService buttonService(feedingService, D0);
 SyncService syncService(apiClient, feedingHistoryService, timeService, wifi);
+ProvisioningService provisioningService(wifi, wifiCredentialsStorage);
 
 void handleWifiConnected()
 {
@@ -93,47 +96,15 @@ void setup()
     configuration = storage.loadConfiguration(Configuration{});
     motor.setStepsPerFeed(configuration.stepsPerFeed);
 
-    wifi.begin(WIFI_SSID, WIFI_PASSWORD);
     buttonService.begin();
     scheduler.begin();
-    webServer.begin();
     heartbeatService.begin();
     feedingHistoryService.begin();
     syncService.begin();
-
-    const auto history = feedingHistoryService.getHistory();
-
-    Serial.println("========== Feeding History ==========");
-
-    for (const auto& event : history)
+    provisioningService.begin();
+    if (!provisioningService.isActive())
     {
-        Serial.print("Timestamp: ");
-        Serial.println(event.timestamp);
-
-        Serial.print("Portions: ");
-        Serial.println(event.portions);
-
-        Serial.print("Source: ");
-
-        switch (event.source)
-        {
-            case FeedingSource::Physical:
-                Serial.println("physical");
-                break;
-
-            case FeedingSource::Scheduled:
-                Serial.println("scheduled");
-                break;
-
-            case FeedingSource::Remote:
-                Serial.println("remote");
-                break;
-        }
-
-        Serial.print("Synced: ");
-        Serial.println(event.synced ? "true" : "false");
-
-        Serial.println("--------------------------------------");
+        webServer.begin();
     }
 }
 
@@ -141,6 +112,12 @@ void loop()
 {
     motor.update();
     buttonService.update();
+
+    provisioningService.update();
+    if (provisioningService.consumeProvisioned())
+    {
+        webServer.begin();
+    }
 
     wifi.update();
     if (hasWifiJustConnected())

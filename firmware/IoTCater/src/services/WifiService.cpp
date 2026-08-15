@@ -2,19 +2,33 @@
 
 WiFiService::WiFiService() {}
 
-void WiFiService::begin(const char* ssid, const char* password)
+void WiFiService::begin(const String& ssid, const String& password, bool keepAccessPoint)
 {
     _ssid = ssid;
     _password = password;
 
-    WiFi.mode(WIFI_STA);
+    WiFi.persistent(false);
+    WiFi.mode(keepAccessPoint ? WIFI_AP_STA : WIFI_STA);
 
     attemptConnection();
 }
 
+void WiFiService::disconnect(bool eraseStoredCredentials)
+{
+    _ssid = "";
+    _password = "";
+    _state = ConnectionState::Disconnected;
+    if (eraseStoredCredentials)
+    {
+        WiFi.persistent(true);
+    }
+    WiFi.disconnect(eraseStoredCredentials);
+    WiFi.persistent(false);
+}
+
 void WiFiService::attemptConnection()
 {
-    if (_ssid == nullptr || _password == nullptr)
+    if (_ssid.isEmpty())
     {
         return;
     }
@@ -25,7 +39,7 @@ void WiFiService::attemptConnection()
     Serial.print("[WifiService] Conectando a ");
     Serial.print(_ssid);
     Serial.println("...");
-    WiFi.begin(_ssid, _password);
+    WiFi.begin(_ssid.c_str(), _password.c_str());
     _lastReconnectAttempt = millis();
 }
 

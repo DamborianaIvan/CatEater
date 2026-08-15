@@ -15,6 +15,7 @@ class ButtonService
     uint8_t _pin;
 
     bool _lastState = HIGH;
+    unsigned long _pressedAt = 0;
 
     static constexpr int DEFAULT_PORTIONS = 1;
 };

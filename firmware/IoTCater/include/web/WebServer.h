@@ -17,6 +17,7 @@ class WebServer
                        Configuration& configuration, ConfigurationStorage& storage);
 
     void begin();
+    void stop();
     void update();
 
    private:
@@ -27,6 +28,7 @@ class WebServer
     ESP8266WebServer _server{80};
     Configuration& _configuration;
     Scheduler& _scheduler;
+    bool _started = false;
     bool isValidSchedule(int hour, int minute, int portions) const;
     void registerRoutes();
     void handleHome();

@@ -19,14 +19,33 @@ WebServer::WebServer(Motor& motor, WiFiService& wifi, FeedingService& feedingSer
 
 void WebServer::begin()
 {
+    if (_started)
+    {
+        return;
+    }
     registerRoutes();
     _server.begin();
+    _started = true;
     Serial.println("[WebServer] Iniciado.");
+}
+
+void WebServer::stop()
+{
+    if (!_started)
+    {
+        return;
+    }
+
+    _server.stop();
+    _started = false;
 }
 
 void WebServer::update()
 {
-    _server.handleClient();
+    if (_started)
+    {
+        _server.handleClient();
+    }
 }
 
 void WebServer::registerRoutes()
