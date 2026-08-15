@@ -1,3 +1,4 @@
+
 #include <Arduino.h>
 #include "hardware/Motor.h"
 #include "services/WifiService.h"
@@ -18,6 +19,7 @@
 #include "services/FeedingHistoryService.h"
 #include "services/SyncService.h"
 #include "services/TimeService.h"
+#include "services/OtaService.h"
 
 Motor motor;
 FeedingHistoryService feedingHistoryService;
@@ -32,7 +34,8 @@ WifiCredentialsStorage wifiCredentialsStorage;
 DeviceInfo deviceInfo(wifi);
 ApiClient apiClient(httpClient, deviceInfo);
 RemoteStateService remoteStateService(apiClient, feedingService, wifi);
-WebServer webServer(motor, wifi, feedingService, scheduler, configuration, storage);
+OtaService otaService(motor);
+WebServer webServer(motor, wifi, feedingService, scheduler, configuration, storage, otaService);
 HeartbeatService heartbeatService(apiClient, wifi);
 ButtonService buttonService(feedingService, D0);
 SyncService syncService(apiClient, feedingHistoryService, timeService, wifi);

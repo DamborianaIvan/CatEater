@@ -6,14 +6,15 @@
 #include "services/Scheduler.h"
 
 WebServer::WebServer(Motor& motor, WiFiService& wifi, FeedingService& feedingService,
-                     Scheduler& scheduler,
-                     Configuration& configuration, ConfigurationStorage& storage)
+                     Scheduler& scheduler, Configuration& configuration,
+                     ConfigurationStorage& storage, OtaService& otaService)
     : _motor(motor),
       _wifi(wifi),
       _feedingService(feedingService),
       _storage(storage),
       _configuration(configuration),
-      _scheduler(scheduler)
+      _scheduler(scheduler),
+      _otaService(otaService)
 {
 }
 
@@ -61,6 +62,10 @@ void WebServer::registerRoutes()
     _server.on("/config", HTTP_PUT, [this]() { handleUpdateConfig(); });
 
     _server.on("/config", HTTP_GET, [this]() { handleGetConfiguration(); });
+
+    _server.on("/update", HTTP_GET, [this]() { _otaService.handlePage(_server); });
+
+    _server.on("/update", HTTP_POST, [this]() {}, [this]() { _otaService.handleUpdate(_server); });
 }
 
 void WebServer::handleHome()

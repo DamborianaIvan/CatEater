@@ -8,14 +8,14 @@
 #include "services/FeedingService.h"
 #include "storage/ConfigurationStorage.h"
 #include "services/Scheduler.h"
+#include "services/OtaService.h"
 
 class WebServer
 {
    public:
     explicit WebServer(Motor& motor, WiFiService& wifi, FeedingService& feedingService,
-                       Scheduler& scheduler,
-                       Configuration& configuration, ConfigurationStorage& storage);
-
+                       Scheduler& scheduler, Configuration& configuration,
+                       ConfigurationStorage& storage, OtaService& otaService);
     void begin();
     void stop();
     void update();
@@ -28,6 +28,7 @@ class WebServer
     ESP8266WebServer _server{80};
     Configuration& _configuration;
     Scheduler& _scheduler;
+    OtaService& _otaService;
     bool _started = false;
     bool isValidSchedule(int hour, int minute, int portions) const;
     void registerRoutes();
