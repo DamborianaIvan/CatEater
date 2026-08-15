@@ -5,34 +5,36 @@
 #include "network/ApiClient.h"
 #include "services/FeedingService.h"
 #include "services/WifiService.h"
+#include "storage/RemoteCommandStorage.h"
 
 class RemoteStateService
 {
    public:
     explicit RemoteStateService(ApiClient& apiClient, FeedingService& feedingService,
-                                WiFiService& wifiService);
+                                WiFiService& wifiService, RemoteCommandStorage& commandStorage);
+
     void update();
+    bool loadCommand();
 
    private:
     ApiClient& _apiClient;
     FeedingService& _feedingService;
     WiFiService& _wifiService;
+    RemoteCommandStorage& _commandStorage;
 
     static constexpr unsigned long CONFIRMATION_RETRY_INTERVAL = 5000;
+    static constexpr unsigned long POLL_INTERVAL = 5000;
 
     unsigned long _lastConfirmationAttempt = 0;
     unsigned long _lastRequest = 0;
 
-    bool motorState = false;
     bool _remoteFeedInProgress = false;
-    bool _initialized = false;
 
     String _activeCommandId;
-    String _lastCommandId;
 
-    int portions = 1;
-
-    static constexpr unsigned long POLL_INTERVAL = 5000;
+    RemoteCommand _command;
+    bool _hasCommand = false;
 
     void pollMotorState();
+    bool processCommand(const String& commandId, int portions);
 };

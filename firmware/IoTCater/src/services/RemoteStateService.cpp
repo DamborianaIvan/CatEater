@@ -1,11 +1,14 @@
 #include "services/RemoteStateService.h"
 
 RemoteStateService::RemoteStateService(ApiClient& apiClient, FeedingService& feedingService,
-                                       WiFiService& wifiService)
-    : _apiClient(apiClient), _feedingService(feedingService), _wifiService(wifiService)
+                                       WiFiService& wifiService,
+                                       RemoteCommandStorage& commandStorage)
+    : _apiClient(apiClient),
+      _feedingService(feedingService),
+      _wifiService(wifiService),
+      _commandStorage(commandStorage)
 {
 }
-
 void RemoteStateService::update()
 {
     if (!_wifiService.isConnected())
@@ -23,6 +26,19 @@ void RemoteStateService::update()
     pollMotorState();
 }
 
+bool RemoteStateService::loadCommand()
+{
+    _hasCommand = _commandStorage.load(_command);
+
+    if (_hasCommand)
+    {
+        Serial.print("[RemoteStateService] Comando recuperado. ID: ");
+        Serial.println(_command.commandId);
+    }
+
+    return true;
+}
+
 void RemoteStateService::pollMotorState()
 {
     bool motorState = false;
@@ -35,29 +51,30 @@ void RemoteStateService::pollMotorState()
         return;
     }
 
-    if (!_initialized)
+    if (!commandId.isEmpty())
     {
-        _lastCommandId = commandId;
-        _initialized = true;
-
-        return;
-    }
-    if (motorState && !commandId.isEmpty() && commandId != _lastCommandId)
-    {
-        Serial.print("[RemoteStateService] Nueva orden recibida. ID: ");
-        Serial.println(commandId);
-
-        Serial.print("[RemoteStateService] Porciones: ");
-        Serial.println(portions);
-
-        if (_feedingService.feed(portions, FeedingSource::Remote))
+        if (_hasCommand && commandId == _command.commandId)
         {
-            _remoteFeedInProgress = true;
-            _lastCommandId = commandId;
-            _activeCommandId = commandId;
-            _lastConfirmationAttempt = 0;
+            if (_command.status == RemoteCommandStatus::Completed)
+            {
+                // Comando ya procesado. No hacer nada.
+            }
+            else if (_command.status == RemoteCommandStatus::Executing)
+            {
+                _remoteFeedInProgress = true;
+                _activeCommandId = commandId;
+            }
+            else if (_command.status == RemoteCommandStatus::Pending)
+            {
+                processCommand(commandId, _command.portions);
+            }
+        }
+        else
+        {
+            processCommand(commandId, portions);
         }
     }
+
     if (_remoteFeedInProgress && !_feedingService.isFeeding())
     {
         if (millis() - _lastConfirmationAttempt >= CONFIRMATION_RETRY_INTERVAL)
@@ -70,6 +87,15 @@ void RemoteStateService::pollMotorState()
             {
                 Serial.println("[RemoteStateService] Comando remoto confirmado.");
 
+                _command.status = RemoteCommandStatus::Completed;
+
+                if (!_commandStorage.save(_command))
+                {
+                    Serial.println("[RemoteStateService] Error guardando comando completado.");
+
+                    return;
+                }
+
                 _remoteFeedInProgress = false;
                 _activeCommandId = "";
             }
@@ -79,4 +105,56 @@ void RemoteStateService::pollMotorState()
             }
         }
     }
+}
+bool RemoteStateService::processCommand(const String& commandId, int portions)
+{
+    if (commandId.isEmpty())
+    {
+        return false;
+    }
+
+    RemoteCommand command;
+
+    command.commandId = commandId;
+    command.portions = portions;
+    command.status = RemoteCommandStatus::Pending;
+
+    if (!_commandStorage.save(command))
+    {
+        Serial.println("[RemoteStateService] No se pudo persistir el comando.");
+
+        return false;
+    }
+
+    _command = command;
+    _hasCommand = true;
+
+    Serial.print("[RemoteStateService] Nueva orden recibida. ID: ");
+    Serial.println(commandId);
+
+    Serial.print("[RemoteStateService] Porciones: ");
+    Serial.println(portions);
+
+    if (!_feedingService.feed(portions, FeedingSource::Remote))
+    {
+        Serial.println("[RemoteStateService] No se pudo iniciar la alimentacion.");
+
+        return false;
+    }
+
+    command.status = RemoteCommandStatus::Executing;
+
+    if (!_commandStorage.save(command))
+    {
+        Serial.println("[RemoteStateService] Error persistiendo estado executing.");
+
+        return false;
+    }
+
+    _command = command;
+    _remoteFeedInProgress = true;
+    _activeCommandId = commandId;
+    _lastConfirmationAttempt = 0;
+
+    return true;
 }

@@ -20,6 +20,7 @@
 #include "services/SyncService.h"
 #include "services/TimeService.h"
 #include "services/OtaService.h"
+#include "services/RemoteStateService.h"
 
 Motor motor;
 FeedingHistoryService feedingHistoryService;
@@ -33,7 +34,8 @@ ConfigurationStorage storage;
 WifiCredentialsStorage wifiCredentialsStorage;
 DeviceInfo deviceInfo(wifi);
 ApiClient apiClient(httpClient, deviceInfo);
-RemoteStateService remoteStateService(apiClient, feedingService, wifi);
+RemoteCommandStorage remoteCommandStorage;
+RemoteStateService remoteStateService(apiClient, feedingService, wifi, remoteCommandStorage);
 OtaService otaService(motor);
 WebServer webServer(motor, wifi, feedingService, scheduler, configuration, storage, otaService);
 HeartbeatService heartbeatService(apiClient, wifi);
@@ -109,6 +111,8 @@ void setup()
     {
         webServer.begin();
     }
+    remoteCommandStorage.begin();
+    remoteStateService.loadCommand();
 }
 
 void loop()

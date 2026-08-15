@@ -106,8 +106,19 @@ bool ApiClient::completeMotorCommand(const String& commandId)
     String body;
     serializeJson(document, body);
 
+    // HttpResponse response =
+    //     _httpClient.post(buildUrl(endpoint), body, headers, BACKGROUND_TIMEOUT_MS);
+    // return response.success && response.statusCode >= 200 && response.statusCode < 300;
+
     HttpResponse response =
         _httpClient.post(buildUrl(endpoint), body, headers, BACKGROUND_TIMEOUT_MS);
+
+    Serial.printf("[ApiClient] /feeder/complete -> success=%d status=%d\n", response.success,
+                  response.statusCode);
+
+    Serial.print("[ApiClient] Response: ");
+    Serial.println(response.body);
+
     return response.success && response.statusCode >= 200 && response.statusCode < 300;
 }
 
@@ -162,7 +173,8 @@ bool ApiClient::syncFeedingEvent(const FeedingEvent& event)
     String body;
     serializeJson(document, body);
 
-    HttpResponse response = _httpClient.post(buildUrl(endpoint), body, headers, EVENT_SYNC_TIMEOUT_MS);
+    HttpResponse response =
+        _httpClient.post(buildUrl(endpoint), body, headers, EVENT_SYNC_TIMEOUT_MS);
 
     return response.success && response.statusCode >= 200 && response.statusCode < 300;
 }
