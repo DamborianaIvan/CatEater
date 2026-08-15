@@ -16,6 +16,7 @@ class OtaService
 
    private:
     Motor& _motor;
+    bool _updateFailed = false;
 };
 
 #endif

@@ -29,7 +29,8 @@ bool FeedingHistoryService::preserveCorruptHistoryFile(const char* path, const c
 
     if (LittleFS.exists(preservedPath))
     {
-        Serial.println("[FeedingHistoryService] No se reemplaza un historial corrupto ya preservado.");
+        Serial.println(
+            "[FeedingHistoryService] No se reemplaza un historial corrupto ya preservado.");
         return false;
     }
 
@@ -111,7 +112,8 @@ bool FeedingHistoryService::recoverHistoryFiles()
     }
     else
     {
-        Serial.println("[FeedingHistoryService] Historial corrupto preservado; se inicia cola nueva.");
+        Serial.println(
+            "[FeedingHistoryService] Historial corrupto preservado; se inicia cola nueva.");
     }
     return true;
 }
@@ -253,7 +255,11 @@ bool FeedingHistoryService::trimHistory()
     file.close();
 
     JsonArray history = document.as<JsonArray>();
-
+    if (history.size() <= MAX_HISTORY_EVENTS)
+    {
+        return true;
+    }
+    Serial.printf("[FeedingHistoryService] Eventos antes de limpieza: %u\n", history.size());
     while (history.size() > MAX_HISTORY_EVENTS)
     {
         int oldestSyncedIndex = -1;
@@ -269,9 +275,8 @@ bool FeedingHistoryService::trimHistory()
 
         if (oldestSyncedIndex < 0)
         {
-            return false;
+            return true;
         }
-
         history.remove(oldestSyncedIndex);
     }
 
@@ -346,7 +351,7 @@ std::vector<FeedingEvent> FeedingHistoryService::getHistory()
 
         history.push_back(event);
     }
-
+    Serial.printf("[FeedingHistoryService] Eventos en historial: %u\n", history.size());
     return history;
 }
 

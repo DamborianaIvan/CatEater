@@ -47,8 +47,8 @@ void OtaService::handleUpdate(ESP8266WebServer& server)
 
     if (upload.status == UPLOAD_FILE_START)
     {
+        _updateFailed = false;
         Serial.printf("[OtaService] Iniciando OTA: %s\n", upload.filename.c_str());
-
         const size_t updateSize = upload.contentLength;
 
         if (!Update.begin(updateSize))
@@ -63,12 +63,23 @@ void OtaService::handleUpdate(ESP8266WebServer& server)
     {
         if (Update.write(upload.buf, upload.currentSize) != upload.currentSize)
         {
+            _updateFailed = true;
             Serial.printf("[OtaService] Error escribiendo OTA: %s\n",
                           Update.getErrorString().c_str());
         }
     }
     else if (upload.status == UPLOAD_FILE_END)
     {
+        if (_updateFailed)
+        {
+            Serial.println("[OtaService] OTA cancelada por error de escritura.");
+
+            server.send(500, "application/json",
+                        R"({"success":false,"message":"OTA failed during write"})");
+
+            return;
+        }
+
         if (Update.end(true))
         {
             Serial.printf("[OtaService] OTA completada. Bytes: %u\n", upload.totalSize);
