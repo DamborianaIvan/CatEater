@@ -61,15 +61,17 @@ bool ApiClient::getFeederInfo(FeederInfo& feederInfo)
     return true;
 }
 
-bool ApiClient::getMotorState(bool& motorState, int& portions, String& commandId)
+bool ApiClient::getMotorState(bool& motorState, int& portions, String& commandId,
+                              uint32_t& configRevision)
 {
-    String endpoint = String("/feeder/motor-state/") + _deviceInfo.getDeviceId();
+    String endpoint = String("/feeders/motor-state/") + _deviceInfo.getDeviceId();
 
     HttpHeaders headers;
 
     headers.emplace_back("x-api-key", API_KEY);
 
     HttpResponse response = _httpClient.get(buildUrl(endpoint), headers, MOTOR_STATE_TIMEOUT_MS);
+
     if (!response.success || response.statusCode != 200)
     {
         return false;
@@ -87,6 +89,73 @@ bool ApiClient::getMotorState(bool& motorState, int& portions, String& commandId
     motorState = document["motorState"] | false;
     portions = document["portions"] | 1;
     commandId = document["commandId"] | "";
+    configRevision = document["configRevision"] | 0;
+
+    return true;
+}
+
+bool ApiClient::getRemoteConfiguration(Configuration& configuration, uint32_t& revision)
+{
+    String endpoint = String("/feeders/config/") + _deviceInfo.getDeviceId();
+
+    HttpHeaders headers;
+
+    headers.emplace_back("x-api-key", API_KEY);
+
+    HttpResponse response = _httpClient.get(buildUrl(endpoint), headers, BACKGROUND_TIMEOUT_MS);
+
+    if (!response.success || response.statusCode != 200)
+    {
+        return false;
+    }
+
+    JsonDocument document;
+
+    DeserializationError error = deserializeJson(document, response.body);
+
+    if (error)
+    {
+        return false;
+    }
+
+    if (!document["revision"].is<uint32_t>())
+    {
+        return false;
+    }
+
+    revision = document["revision"].as<uint32_t>();
+
+    Configuration newConfiguration;
+
+    newConfiguration.stepsPerFeed = document["stepsPerFeed"];
+
+    JsonArray schedules = document["schedules"].as<JsonArray>();
+
+    if (schedules.isNull())
+    {
+        return false;
+    }
+
+    for (uint8_t i = 0; i < MAX_SCHEDULES; ++i)
+    {
+        JsonObject schedule = schedules[i].as<JsonObject>();
+
+        if (schedule.isNull())
+        {
+            return false;
+        }
+
+        newConfiguration.schedules[i].hour = schedule["hour"] | 0;
+
+        newConfiguration.schedules[i].minute = schedule["minute"] | 0;
+
+        newConfiguration.schedules[i].portions = schedule["portions"] | 1;
+
+        newConfiguration.schedules[i].enabled = schedule["enabled"] | false;
+    }
+
+    configuration = newConfiguration;
+
     return true;
 }
 

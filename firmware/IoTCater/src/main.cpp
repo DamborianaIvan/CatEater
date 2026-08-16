@@ -35,14 +35,17 @@ WifiCredentialsStorage wifiCredentialsStorage;
 DeviceInfo deviceInfo(wifi);
 ApiClient apiClient(httpClient, deviceInfo);
 RemoteCommandStorage remoteCommandStorage;
-RemoteStateService remoteStateService(apiClient, feedingService, wifi, remoteCommandStorage);
 OtaService otaService(motor);
 WebServer webServer(motor, wifi, feedingService, scheduler, configuration, storage, otaService);
 HeartbeatService heartbeatService(apiClient, wifi);
 ButtonService buttonService(feedingService, D0);
 SyncService syncService(apiClient, feedingHistoryService, timeService, wifi);
 ProvisioningService provisioningService(wifi, wifiCredentialsStorage);
-
+ConfigurationRevisionStorage configurationRevisionStorage;
+ConfigurationSyncService configurationSyncService(apiClient, storage, configurationRevisionStorage,
+                                                  configuration);
+RemoteStateService remoteStateService(apiClient, feedingService, wifi, remoteCommandStorage,
+                                      configurationSyncService);
 void handleWifiConnected()
 {
     deviceInfo.printBootInfo();
@@ -113,6 +116,7 @@ void setup()
     }
     remoteCommandStorage.begin();
     remoteStateService.loadCommand();
+    configurationSyncService.begin();
 }
 
 void loop()

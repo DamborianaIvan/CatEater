@@ -6,13 +6,14 @@
 #include "services/FeedingService.h"
 #include "services/WifiService.h"
 #include "storage/RemoteCommandStorage.h"
+#include "services/ConfigurationSyncService.h"
 
 class RemoteStateService
 {
    public:
     explicit RemoteStateService(ApiClient& apiClient, FeedingService& feedingService,
-                                WiFiService& wifiService, RemoteCommandStorage& commandStorage);
-
+                                WiFiService& wifiService, RemoteCommandStorage& commandStorage,
+                                ConfigurationSyncService& configurationSyncService);
     void update();
     bool loadCommand();
 
@@ -21,7 +22,7 @@ class RemoteStateService
     FeedingService& _feedingService;
     WiFiService& _wifiService;
     RemoteCommandStorage& _commandStorage;
-
+    ConfigurationSyncService& _configurationSyncService;
     static constexpr unsigned long CONFIRMATION_RETRY_INTERVAL = 5000;
     static constexpr unsigned long POLL_INTERVAL = 5000;
 

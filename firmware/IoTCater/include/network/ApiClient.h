@@ -6,6 +6,7 @@
 #include "network/HttpClient.h"
 #include "network/FeederInfo.h"
 #include "domain/FeedingEvent.h"
+#include "domain/Configuration.h"
 
 enum class RegistrationResult
 {
@@ -24,7 +25,9 @@ class ApiClient
 
     RegistrationResult registerDevice();
     bool getFeederInfo(FeederInfo& feederInfo);
-    bool getMotorState(bool& motorState, int& portions, String& commandId);
+    bool getRemoteConfiguration(Configuration& configuration, uint32_t& revision);
+    bool getMotorState(bool& motorState, int& portions, String& commandId,
+                       uint32_t& configRevision);
     bool completeMotorCommand(const String& commandId);
     bool sendHeartbeat();
     bool syncFeedingEvent(const FeedingEvent& event);

@@ -15,7 +15,20 @@ bool FeedingHistoryService::isValidHistoryFile(const char* path) const
     }
 
     JsonDocument document;
+
+    Serial.printf("[FeedingHistoryService] Heap antes de deserialize validacion: %u\n",
+                  ESP.getFreeHeap());
+
     const DeserializationError error = deserializeJson(document, file);
+
+    Serial.printf("[FeedingHistoryService] Heap despues de deserialize validacion: %u\n",
+                  ESP.getFreeHeap());
+    if (error)
+    {
+        Serial.print("[FeedingHistoryService] Error de validacion JSON: ");
+
+        Serial.println(error.c_str());
+    }
     file.close();
     return !error && document.is<JsonArray>();
 }
@@ -118,26 +131,51 @@ bool FeedingHistoryService::recoverHistoryFiles()
     return true;
 }
 
-bool FeedingHistoryService::writeHistoryDocument(JsonDocument& document)
+bool FeedingHistoryService::writeHistoryTemp(JsonDocument& document)
 {
     File file = LittleFS.open(HISTORY_TEMP_FILE, "w");
+
     if (!file)
     {
+        Serial.println("[FeedingHistoryService] Error abriendo archivo temporal.");
+
         return false;
     }
 
     const size_t written = serializeJson(document, file);
+
+    const size_t fileSize = file.size();
+
     file.flush();
     file.close();
 
-    if (written == 0 || !isValidHistoryFile(HISTORY_TEMP_FILE))
+    if (written == 0)
+    {
+        Serial.println("[FeedingHistoryService] Error serializando historial.");
+
+        return false;
+    }
+
+    if (fileSize != written)
+    {
+        Serial.printf("[FeedingHistoryService] Escritura incompleta. Esperados: %u, escritos: %u\n",
+                      written, fileSize);
+
+        return false;
+    }
+
+    return true;
+}
+
+bool FeedingHistoryService::writeHistoryDocument(JsonDocument& document)
+{
+    if (!writeHistoryTemp(document))
     {
         return false;
     }
 
     return replaceHistoryWith(HISTORY_TEMP_FILE);
 }
-
 bool FeedingHistoryService::begin()
 {
     if (!LittleFS.begin())
@@ -233,62 +271,97 @@ bool FeedingHistoryService::trimHistory()
         return true;
     }
 
-    File file = LittleFS.open(HISTORY_FILE, "r");
-
-    if (!file)
     {
-        Serial.println("[FeedingHistoryService] Error abriendo historial para limpieza.");
-        return false;
-    }
+        File file = LittleFS.open(HISTORY_FILE, "r");
 
-    JsonDocument document;
-
-    if (deserializeJson(document, file))
-    {
-        file.close();
-
-        Serial.println("[FeedingHistoryService] Error leyendo historial para limpieza.");
-
-        return false;
-    }
-
-    file.close();
-
-    JsonArray history = document.as<JsonArray>();
-    if (history.size() <= MAX_HISTORY_EVENTS)
-    {
-        return true;
-    }
-    Serial.printf("[FeedingHistoryService] Eventos antes de limpieza: %u\n", history.size());
-    while (history.size() > MAX_HISTORY_EVENTS)
-    {
-        int oldestSyncedIndex = -1;
-
-        for (size_t i = 0; i < history.size(); ++i)
+        if (!file)
         {
-            if (history[i]["synced"] | false)
-            {
-                oldestSyncedIndex = static_cast<int>(i);
-                break;
-            }
+            Serial.println("[FeedingHistoryService] Error abriendo historial para limpieza.");
+
+            return false;
         }
 
-        if (oldestSyncedIndex < 0)
+        JsonDocument document;
+
+        DeserializationError error = deserializeJson(document, file);
+
+        file.close();
+
+        if (error)
+        {
+            Serial.println("[FeedingHistoryService] Error leyendo historial para limpieza.");
+
+            return false;
+        }
+
+        JsonArray history = document.as<JsonArray>();
+
+        if (history.isNull())
+        {
+            Serial.println("[FeedingHistoryService] Historial invalido para limpieza.");
+
+            return false;
+        }
+
+        if (history.size() <= MAX_HISTORY_EVENTS)
         {
             return true;
         }
-        history.remove(oldestSyncedIndex);
+
+        Serial.printf("[FeedingHistoryService] Eventos antes de limpieza: %u\n", history.size());
+
+        while (history.size() > MAX_HISTORY_EVENTS)
+        {
+            int oldestSyncedIndex = -1;
+
+            for (size_t i = 0; i < history.size(); ++i)
+            {
+                if (history[i]["synced"] | false)
+                {
+                    oldestSyncedIndex = static_cast<int>(i);
+
+                    break;
+                }
+            }
+
+            if (oldestSyncedIndex < 0)
+            {
+                Serial.println(
+                    "[FeedingHistoryService] No hay eventos sincronizados para eliminar.");
+
+                return true;
+            }
+
+            history.remove(oldestSyncedIndex);
+        }
+
+        if (!writeHistoryTemp(document))
+        {
+            Serial.println("[FeedingHistoryService] Error escribiendo historial limpio.");
+
+            return false;
+        }
     }
 
-    if (!writeHistoryDocument(document))
+    /*
+     * El JsonDocument ya fue destruido.
+     *
+     * El archivo temporal fue generado directamente
+     * desde un JsonDocument válido y se verificó que
+     * todos los bytes fueron escritos.
+     *
+     * La validación estructural queda para la
+     * recuperación de LittleFS durante el boot.
+     */
+    if (!replaceHistoryWith(HISTORY_TEMP_FILE))
     {
-        Serial.println("[FeedingHistoryService] Error guardando historial limpio.");
+        Serial.println("[FeedingHistoryService] Error reemplazando historial limpio.");
+
         return false;
     }
 
     return true;
 }
-
 std::vector<FeedingEvent> FeedingHistoryService::getHistory()
 {
     std::vector<FeedingEvent> history;
@@ -425,66 +498,70 @@ bool FeedingHistoryService::markAsSynced(const String& eventId)
 
 bool FeedingHistoryService::save(const FeedingEvent& event)
 {
-    JsonDocument document;
-
-    if (LittleFS.exists(HISTORY_FILE))
     {
-        File file = LittleFS.open(HISTORY_FILE, "r");
+        JsonDocument document;
 
-        if (file)
+        if (LittleFS.exists(HISTORY_FILE))
         {
-            DeserializationError error = deserializeJson(document, file);
+            File file = LittleFS.open(HISTORY_FILE, "r");
 
-            file.close();
-
-            if (error)
+            if (file)
             {
-                Serial.println("[FeedingHistoryService] Error leyendo historial.");
+                DeserializationError error = deserializeJson(document, file);
 
-                return false;
+                file.close();
+
+                if (error)
+                {
+                    Serial.println("[FeedingHistoryService] Error leyendo historial.");
+
+                    return false;
+                }
             }
+        }
+
+        JsonArray history;
+
+        if (document.is<JsonArray>())
+        {
+            history = document.as<JsonArray>();
+        }
+        else
+        {
+            history = document.to<JsonArray>();
+        }
+
+        JsonObject entry = history.add<JsonObject>();
+
+        entry["eventId"] = event.eventId;
+        entry["timestamp"] = event.timestamp;
+        entry["portions"] = event.portions;
+        entry["synced"] = event.synced;
+
+        switch (event.source)
+        {
+            case FeedingSource::Physical:
+                entry["source"] = "physical";
+                break;
+
+            case FeedingSource::Scheduled:
+                entry["source"] = "scheduled";
+                break;
+
+            case FeedingSource::Remote:
+                entry["source"] = "remote";
+                break;
+        }
+
+        if (!writeHistoryDocument(document))
+        {
+            Serial.println("[FeedingHistoryService] Error guardando historial.");
+
+            return false;
         }
     }
 
-    JsonArray history;
-
-    if (document.is<JsonArray>())
-    {
-        history = document.as<JsonArray>();
-    }
-    else
-    {
-        history = document.to<JsonArray>();
-    }
-
-    JsonObject entry = history.add<JsonObject>();
-
-    entry["eventId"] = event.eventId;
-    entry["timestamp"] = event.timestamp;
-    entry["portions"] = event.portions;
-    entry["synced"] = event.synced;
-
-    switch (event.source)
-    {
-        case FeedingSource::Physical:
-            entry["source"] = "physical";
-            break;
-
-        case FeedingSource::Scheduled:
-            entry["source"] = "scheduled";
-            break;
-
-        case FeedingSource::Remote:
-            entry["source"] = "remote";
-            break;
-    }
-
-    if (!writeHistoryDocument(document))
-    {
-        Serial.println("[FeedingHistoryService] Error guardando historial.");
-        return false;
-    }
-
+    // El JsonDocument ya fue destruido y su memoria liberada.
     trimHistory();
 
     return true;

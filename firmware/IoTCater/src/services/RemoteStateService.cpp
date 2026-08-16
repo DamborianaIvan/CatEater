@@ -2,11 +2,13 @@
 
 RemoteStateService::RemoteStateService(ApiClient& apiClient, FeedingService& feedingService,
                                        WiFiService& wifiService,
-                                       RemoteCommandStorage& commandStorage)
+                                       RemoteCommandStorage& commandStorage,
+                                       ConfigurationSyncService& configurationSyncService)
     : _apiClient(apiClient),
       _feedingService(feedingService),
       _wifiService(wifiService),
-      _commandStorage(commandStorage)
+      _commandStorage(commandStorage),
+      _configurationSyncService(configurationSyncService)
 {
 }
 void RemoteStateService::update()
@@ -44,12 +46,16 @@ void RemoteStateService::pollMotorState()
     bool motorState = false;
     int portions = 1;
     String commandId;
+    uint32_t configRevision = 0;
 
-    if (!_apiClient.getMotorState(motorState, portions, commandId))
+    if (!_apiClient.getMotorState(motorState, portions, commandId, configRevision))
     {
         Serial.println("[RemoteStateService] Error al consultar motor state.");
+
         return;
     }
+
+    _configurationSyncService.update(configRevision);
 
     if (!commandId.isEmpty())
     {

@@ -36,5 +36,6 @@ class FeedingHistoryService
     bool isValidHistoryFile(const char* path) const;
     bool preserveCorruptHistoryFile(const char* path, const char* preservedPath);
     bool replaceHistoryWith(const char* replacementPath);
+    bool writeHistoryTemp(JsonDocument& document);
     bool writeHistoryDocument(JsonDocument& document);
 };

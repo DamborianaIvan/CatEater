@@ -2,6 +2,133 @@ const Feeder = require("../models/Feeder");
 const crypto = require("crypto");
 require('../jobs/motorStatusJob');
 
+const MAX_SCHEDULES = 5;
+const MIN_STEPS_PER_FEED = 1;
+const MAX_STEPS_PER_FEED = 10240;
+const MIN_PORTIONS = 1;
+const MAX_PORTIONS = 5;
+
+const createDefaultSchedules = () =>
+  Array.from({ length: MAX_SCHEDULES }, () => ({
+    hour: 0,
+    minute: 0,
+    portions: 1,
+    enabled: false
+  }));
+
+const validateConfiguration = (configuration) => {
+  if (!configuration || typeof configuration !== "object") {
+    return "La configuración es obligatoria.";
+  }
+
+  const {
+    stepsPerFeed,
+    schedules
+  } = configuration;
+
+  if (
+    !Number.isInteger(stepsPerFeed) ||
+    stepsPerFeed < MIN_STEPS_PER_FEED ||
+    stepsPerFeed > MAX_STEPS_PER_FEED
+  ) {
+    return `stepsPerFeed debe estar entre ${MIN_STEPS_PER_FEED} y ${MAX_STEPS_PER_FEED}.`;
+  }
+
+  if (!Array.isArray(schedules)) {
+    return "schedules debe ser un arreglo.";
+  }
+
+  if (schedules.length !== MAX_SCHEDULES) {
+    return `schedules debe contener exactamente ${MAX_SCHEDULES} elementos.`;
+  }
+
+  for (const schedule of schedules) {
+    if (
+      !Number.isInteger(schedule.hour) ||
+      schedule.hour < 0 ||
+      schedule.hour > 23
+    ) {
+      return "Hora de schedule inválida.";
+    }
+
+    if (
+      !Number.isInteger(schedule.minute) ||
+      schedule.minute < 0 ||
+      schedule.minute > 59
+    ) {
+      return "Minuto de schedule inválido.";
+    }
+
+    if (
+      !Number.isInteger(schedule.portions) ||
+      schedule.portions < MIN_PORTIONS ||
+      schedule.portions > MAX_PORTIONS
+    ) {
+      return "Cantidad de porciones inválida.";
+    }
+
+    if (typeof schedule.enabled !== "boolean") {
+      return "enabled debe ser boolean.";
+    }
+  }
+
+  return null;
+};
+
+//get configuracion dle feeder
+const getFeederConfiguration = async (req, res) => {
+  const apiKey = req.headers["x-api-key"];
+  const { feederId } = req.params;
+
+  if (apiKey !== process.env.NODEMCU_API_KEY) {
+    return res.status(401).json({
+      error: "No autorizado - API Key inválida"
+    });
+  }
+
+  if (!feederId || feederId.trim() === "") {
+    return res.status(400).json({
+      error: "feederId es requerido"
+    });
+  }
+
+  try {
+    const feeder = await Feeder.findOne({ feederId });
+
+    if (!feeder) {
+      return res.status(404).json({
+        error: "Feeder no encontrado"
+      });
+    }
+
+    let configuration = feeder.configuration;
+
+    // Compatibilidad con feeders creados antes de esta configuración.
+    if (!configuration) {
+      configuration = {
+        revision: 1,
+        stepsPerFeed: 2048,
+        schedules: createDefaultSchedules()
+      };
+    }
+
+    return res.status(200).json({
+      revision: configuration.revision,
+      stepsPerFeed: configuration.stepsPerFeed,
+      schedules: configuration.schedules
+    });
+
+  } catch (error) {
+    console.error(
+      "Error al obtener configuración del feeder:",
+      error
+    );
+
+    return res.status(500).json({
+      error: "Error interno del servidor"
+    });
+  }
+};
 
 // Registrar comedero (desde NodeMCU)
 const registerFeeder = async (req, res) => {
@@ -664,12 +791,93 @@ const getMotorStatusNodemcu = async (req, res) =>{
       return res.status(404).json({ message: "Comedero no encontrado para el usuario especificado." });
     }
 
-    res.json({motorState:feeder.motorInfo.motorState,portions:feeder.motorInfo.portions,commandId:feeder.motorInfo.commandId});
+    res.json({
+  motorState: feeder.motorInfo.motorState,
+  portions: feeder.motorInfo.portions,
+  commandId: feeder.motorInfo.commandId,
+  configRevision: feeder.configuration?.revision ?? 1
+});
   } catch (error) {
     res.status(500).json({ message: "Error al obtener comedero", error: error.message });
   }
 
 }
+
+const updateFeederConfiguration = async (req, res) => {
+  const { feederId } = req.params;
+
+  const validationError = validateConfiguration(req.body);
+
+  if (validationError) {
+    return res.status(400).json({
+      message: validationError
+    });
+  }
+
+  try {
+    const feeder = await Feeder.findOne({
+      feederId
+    });
+
+    if (!feeder) {
+      return res.status(404).json({
+        message: "Comedero no encontrado para el usuario."
+      });
+    }
+
+    const currentConfiguration = feeder.configuration || {
+      revision: 1,
+      stepsPerFeed: 2048,
+      schedules: createDefaultSchedules()
+    };
+
+    const newConfiguration = {
+      stepsPerFeed: req.body.stepsPerFeed,
+      schedules: req.body.schedules
+    };
+
+    const configurationChanged =
+      currentConfiguration.stepsPerFeed !==
+        newConfiguration.stepsPerFeed ||
+      JSON.stringify(currentConfiguration.schedules) !==
+        JSON.stringify(newConfiguration.schedules);
+
+    if (!configurationChanged) {
+      return res.status(200).json({
+        message: "La configuración no tuvo cambios.",
+        revision: currentConfiguration.revision,
+        configuration: currentConfiguration
+      });
+    }
+
+    const newRevision =
+      (currentConfiguration.revision || 1) + 1;
+
+    feeder.configuration = {
+      revision: newRevision,
+      stepsPerFeed: newConfiguration.stepsPerFeed,
+      schedules: newConfiguration.schedules
+    };
+
+    await feeder.save();
+
+    return res.status(200).json({
+      message: "Configuración actualizada correctamente.",
+      revision: newRevision,
+      configuration: feeder.configuration
+    });
+
+  } catch (error) {
+    console.error(
+      "Error al actualizar configuración:",
+      error
+    );
+
+    return res.status(500).json({
+      message: "Error interno al actualizar configuración."
+    });
+  }
+};
 
 //Get motor status pero solo para NODEMCU
 const getMotorStatus = async (req, res) =>{
@@ -896,5 +1104,7 @@ module.exports = {
   getFechasByFeederId,
   getFeederHistory,
   syncFeedingHistory,
-  heartbeat
+  heartbeat,
+  getFeederConfiguration,
+  updateFeederConfiguration,
 };

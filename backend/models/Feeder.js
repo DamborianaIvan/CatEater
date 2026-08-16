@@ -25,6 +25,57 @@ const FeederSchema = new mongoose.Schema({
       type: String,
       default: null
     }
+  },configuration: {
+    revision: {
+      type: Number,
+      default: 1,
+      min: 1
+    },
+
+    stepsPerFeed: {
+      type: Number,
+      default: 2048,
+      min: 1,
+      max: 10240
+    },
+
+    schedules: {
+      type: [
+        {
+          hour: {
+            type: Number,
+            required: true,
+            min: 0,
+            max: 23
+          },
+
+          minute: {
+            type: Number,
+            required: true,
+            min: 0,
+            max: 59
+          },
+
+          portions: {
+            type: Number,
+            required: true,
+            min: 1,
+            max: 5
+          },
+
+          enabled: {
+            type: Boolean,
+            default: false
+          }
+        }
+      ],
+      default: () => Array.from({ length: 5 }, () => ({
+        hour: 0,
+        minute: 0,
+        portions: 1,
+        enabled: false
+      }))
+    }
   },
   feederHistory: {
       type: [

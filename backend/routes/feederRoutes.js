@@ -703,7 +703,7 @@ router.post('/feeder/edit', verifyToken, feederController.editFeeder);
  *               message: "Error al obtener comedero"
  *               error: "Detalle del error"
  */
-router.get('/feeder/motor-state/:feederId', feederController.getMotorStatusNodemcu);
+router.get('/feeders/motor-state/:feederId', feederController.getMotorStatusNodemcu);
 
 //Obtener estado motor
 /**
@@ -861,7 +861,7 @@ router.get('/feeder/dates/:feederId', verifyToken, feederController.getFechasByF
 router.post('/feeder/add-hour', verifyToken, feederController.addStartHours);
 
 //Delete feeder
-router.delete('/feeders/:feederId', verifyToken, feederController.deleteFeeder);
+router.delete('/feeder/:feederId', verifyToken, feederController.deleteFeeder);
 
 //Obtener historial de ejecs
 router.get('/feeder/:feederId/historial', verifyToken, feederController.getFeederHistory);
@@ -872,6 +872,10 @@ router.post('/feeders/history',feederController.syncFeedingHistory);
 //Comunica el estado del dispositivo hacia el backend
 router.post("/feeders/heartbeat", feederController.heartbeat);
 
+//Obtener configuracion defeeder
+router.get('/feeders/config/:feederId',feederController.getFeederConfiguration);
 
+//Edita configuracion defeeder
+router.put('/feeders/:feederId/config',verifyToken,feederController.updateFeederConfiguration);
 
 module.exports = router;
