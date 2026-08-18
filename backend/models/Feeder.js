@@ -1,9 +1,8 @@
 const mongoose = require("mongoose");
-const { getFeederHistory } = require("../controllers/feederController");
 
 const FeederSchema = new mongoose.Schema({
   feederId: { type: String, required: true, unique: true },
-  userId: { type: String, default: null }, // Si querés que sea referencia a User, avisame
+  userId: { type: String, default: null },
   feederName: { type: String, default: ' ' },
   feederLogo: { type: String, default: ' ' },
   feederAsign: { type: Boolean, default: false },
@@ -11,7 +10,7 @@ const FeederSchema = new mongoose.Schema({
   lastConection: { type: Date, default: Date.now },
   motorInfo: {
     startHours: {
-    type: [Date]
+      type: [Date]
     },
     motorState: {
       type: Boolean,
@@ -25,20 +24,19 @@ const FeederSchema = new mongoose.Schema({
       type: String,
       default: null
     }
-  },configuration: {
+  },
+  configuration: {
     revision: {
       type: Number,
       default: 1,
       min: 1
     },
-
     stepsPerFeed: {
       type: Number,
       default: 2048,
       min: 1,
       max: 10240
     },
-
     schedules: {
       type: [
         {
@@ -48,21 +46,18 @@ const FeederSchema = new mongoose.Schema({
             min: 0,
             max: 23
           },
-
           minute: {
             type: Number,
             required: true,
             min: 0,
             max: 59
           },
-
           portions: {
             type: Number,
             required: true,
             min: 1,
             max: 5
           },
-
           enabled: {
             type: Boolean,
             default: false
@@ -78,27 +73,44 @@ const FeederSchema = new mongoose.Schema({
     }
   },
   feederHistory: {
-      type: [
-          {   eventId: {
-                type: String,
-                default: null
-              },
-              fecha: {
-                  type: Date,
-                  default: Date.now
-              },
-              portions: {
-                type: Number,
-                default: 1
-              },
-              source: {
-                type: String,
-                enum: ["physical", "scheduled", "remote", "legacy"],
-                default: "legacy"
-              }
-          }
-      ],
-      default: []
+    type: [
+      {
+        eventId: {
+          type: String,
+          default: null
+        },
+        fecha: {
+          type: Date,
+          default: Date.now
+        },
+        portions: {
+          type: Number,
+          default: 1
+        },
+        source: {
+          type: String,
+          enum: ["physical", "scheduled", "remote", "legacy"],
+          default: "legacy"
+        }
+      }
+    ],
+    default: []
+  }
+});
+
+// Los eventos de alimentación deben originarse en FeedingService y sincronizarse
+// mediante eventId. Evita que una confirmación de commandId genere un segundo
+// evento anónimo en el historial.
+FeederSchema.pre("updateOne", function () {
+  const update = this.getUpdate();
+  const historyPush = update?.$push?.feederHistory;
+
+  if (historyPush && !historyPush.eventId) {
+    delete update.$push.feederHistory;
+
+    if (Object.keys(update.$push).length === 0) {
+      delete update.$push;
+    }
   }
 });
 
