@@ -45,7 +45,7 @@ SyncService syncService(apiClient, feedingHistoryService, timeService, wifi);
 ProvisioningService provisioningService(wifi, wifiCredentialsStorage);
 ConfigurationRevisionStorage configurationRevisionStorage;
 ConfigurationSyncService configurationSyncService(apiClient, storage, configurationRevisionStorage,
-                                                  configuration);
+                                                  configuration, motor);
 RemoteStateService remoteStateService(apiClient, feedingService, wifi, remoteCommandStorage,
                                       configurationSyncService);
 void handleWifiConnected()
