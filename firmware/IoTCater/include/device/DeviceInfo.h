@@ -4,12 +4,14 @@
 #include "Arduino.h"
 #include "Firmware.h"
 #include "services/WifiService.h"
+
 class DeviceInfo
 {
    public:
     explicit DeviceInfo(const WiFiService& wifi);
 
     String getDeviceId() const;
+    String getFeederId() const;
     String getFirmwareVersion() const;
     String getModel() const;
     String getChipModel() const;
