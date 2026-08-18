@@ -37,7 +37,8 @@ BackendConnectionService backendConnectionService;
 ApiClient apiClient(httpClient, deviceInfo, backendConnectionService);
 RemoteCommandStorage remoteCommandStorage;
 OtaService otaService(motor);
-WebServer webServer(motor, wifi, feedingService, scheduler, configuration, storage, otaService);
+WebServer webServer(motor, wifi, feedingService, scheduler, configuration, storage, otaService,
+                    backendConnectionService);
 HeartbeatService heartbeatService(apiClient, wifi);
 ButtonService buttonService(feedingService, D0);
 SyncService syncService(apiClient, feedingHistoryService, timeService, wifi);
