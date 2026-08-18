@@ -7,6 +7,7 @@
 #include "network/FeederInfo.h"
 #include "domain/FeedingEvent.h"
 #include "domain/Configuration.h"
+#include "services/BackendConnectionService.h"
 
 enum class RegistrationResult
 {
@@ -21,7 +22,8 @@ enum class RegistrationResult
 class ApiClient
 {
    public:
-    ApiClient(HttpClient& httpClient, const DeviceInfo& deviceInfo);
+    ApiClient(HttpClient& httpClient, const DeviceInfo& deviceInfo,
+              BackendConnectionService& backendConnectionService);
 
     RegistrationResult registerDevice();
     bool getFeederInfo(FeederInfo& feederInfo);
@@ -35,6 +37,7 @@ class ApiClient
    private:
     HttpClient& _httpClient;
     const DeviceInfo& _deviceInfo;
+    BackendConnectionService& _backendConnectionService;
 
     static constexpr char CONTENT_TYPE[] = "application/json";
     static constexpr char API_KEY[] = "ExCECoLysoco";
@@ -47,4 +50,7 @@ class ApiClient
 
     String buildUrl(const String& endpoint) const;
     String buildRegistrationBody() const;
+
+    bool canAttemptRequest() const;
+    void updateBackendAvailability(const HttpResponse& response);
 };

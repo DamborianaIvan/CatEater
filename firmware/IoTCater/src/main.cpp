@@ -12,13 +12,13 @@
 #include "device/DeviceInfo.h"
 #include "network/HttpClient.h"
 #include "network/ApiClient.h"
+#include "services/BackendConnectionService.h"
 #include "services/RemoteStateService.h"
 #include "services/HeartbetService.h"
 #include "services/ButtonService.h"
 #include "services/FeedingService.h"
 #include "services/FeedingHistoryService.h"
 #include "services/SyncService.h"
-#include "services/TimeService.h"
 #include "services/OtaService.h"
 #include "services/RemoteStateService.h"
 
@@ -33,10 +33,12 @@ Scheduler scheduler(timeService, feedingService, configuration);
 ConfigurationStorage storage;
 WifiCredentialsStorage wifiCredentialsStorage;
 DeviceInfo deviceInfo(wifi);
-ApiClient apiClient(httpClient, deviceInfo);
+BackendConnectionService backendConnectionService;
+ApiClient apiClient(httpClient, deviceInfo, backendConnectionService);
 RemoteCommandStorage remoteCommandStorage;
 OtaService otaService(motor);
-WebServer webServer(motor, wifi, feedingService, scheduler, configuration, storage, otaService);
+WebServer webServer(motor, wifi, feedingService, scheduler, configuration, storage, otaService,
+                    backendConnectionService);
 HeartbeatService heartbeatService(apiClient, wifi);
 ButtonService buttonService(feedingService, D0);
 SyncService syncService(apiClient, feedingHistoryService, timeService, wifi);
@@ -100,6 +102,7 @@ void setup()
     motor.begin();
     storage.begin();
     timeService.begin();
+    backendConnectionService.begin();
 
     configuration = storage.loadConfiguration(Configuration{});
     motor.setStepsPerFeed(configuration.stepsPerFeed);

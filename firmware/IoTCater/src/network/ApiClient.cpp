@@ -2,8 +2,11 @@
 
 #include <ArduinoJson.h>
 
-ApiClient::ApiClient(HttpClient& httpClient, const DeviceInfo& deviceInfo)
-    : _httpClient(httpClient), _deviceInfo(deviceInfo)
+ApiClient::ApiClient(HttpClient& httpClient, const DeviceInfo& deviceInfo,
+                     BackendConnectionService& backendConnectionService)
+    : _httpClient(httpClient),
+      _deviceInfo(deviceInfo),
+      _backendConnectionService(backendConnectionService)
 {
 }
 
@@ -26,14 +29,37 @@ String ApiClient::buildRegistrationBody() const
     return json;
 }
 
+bool ApiClient::canAttemptRequest() const
+{
+    return _backendConnectionService.canAttempt();
+}
+
+void ApiClient::updateBackendAvailability(const HttpResponse& response)
+{
+    if (response.success && response.statusCode > 0)
+    {
+        _backendConnectionService.recordSuccess();
+    }
+    else
+    {
+        _backendConnectionService.recordFailure();
+    }
+}
+
 bool ApiClient::getFeederInfo(FeederInfo& feederInfo)
 {
+    if (!canAttemptRequest())
+    {
+        return false;
+    }
+
     String endpoint = String("/feeders/global/") + _deviceInfo.getFeederId();
 
     HttpHeaders headers;
     headers.emplace_back("x-api-key", API_KEY);
 
     HttpResponse response = _httpClient.get(buildUrl(endpoint), headers);
+    updateBackendAvailability(response);
 
     if (!response.success || response.statusCode != 200)
     {
@@ -59,12 +85,18 @@ bool ApiClient::getFeederInfo(FeederInfo& feederInfo)
 bool ApiClient::getMotorState(bool& motorState, int& portions, String& commandId,
                               uint32_t& configRevision)
 {
+    if (!canAttemptRequest())
+    {
+        return false;
+    }
+
     String endpoint = String("/feeders/motor-state/") + _deviceInfo.getFeederId();
 
     HttpHeaders headers;
     headers.emplace_back("x-api-key", API_KEY);
 
     HttpResponse response = _httpClient.get(buildUrl(endpoint), headers, MOTOR_STATE_TIMEOUT_MS);
+    updateBackendAvailability(response);
 
     if (!response.success || response.statusCode != 200)
     {
@@ -89,12 +121,18 @@ bool ApiClient::getMotorState(bool& motorState, int& portions, String& commandId
 
 bool ApiClient::getRemoteConfiguration(Configuration& configuration, uint32_t& revision)
 {
+    if (!canAttemptRequest())
+    {
+        return false;
+    }
+
     String endpoint = String("/feeders/config/") + _deviceInfo.getFeederId();
 
     HttpHeaders headers;
     headers.emplace_back("x-api-key", API_KEY);
 
     HttpResponse response = _httpClient.get(buildUrl(endpoint), headers, BACKGROUND_TIMEOUT_MS);
+    updateBackendAvailability(response);
 
     if (!response.success || response.statusCode != 200)
     {
@@ -143,6 +181,11 @@ bool ApiClient::getRemoteConfiguration(Configuration& configuration, uint32_t& r
 
 bool ApiClient::completeMotorCommand(const String& commandId)
 {
+    if (!canAttemptRequest())
+    {
+        return false;
+    }
+
     String endpoint = "/feeder/complete";
 
     HttpHeaders headers;
@@ -158,12 +201,18 @@ bool ApiClient::completeMotorCommand(const String& commandId)
 
     HttpResponse response =
         _httpClient.post(buildUrl(endpoint), body, headers, BACKGROUND_TIMEOUT_MS);
+    updateBackendAvailability(response);
 
     return response.success && response.statusCode >= 200 && response.statusCode < 300;
 }
 
 bool ApiClient::sendHeartbeat()
 {
+    if (!canAttemptRequest())
+    {
+        return false;
+    }
+
     const String endpoint = "/feeders/heartbeat";
 
     HttpHeaders headers;
@@ -174,12 +223,18 @@ bool ApiClient::sendHeartbeat()
 
     HttpResponse response =
         _httpClient.post(buildUrl(endpoint), body, headers, BACKGROUND_TIMEOUT_MS);
+    updateBackendAvailability(response);
 
     return response.success && response.statusCode >= 200 && response.statusCode < 300;
 }
 
 bool ApiClient::syncFeedingEvent(const FeedingEvent& event)
 {
+    if (!canAttemptRequest())
+    {
+        return false;
+    }
+
     const String endpoint = "/feeders/history";
 
     HttpHeaders headers;
@@ -213,12 +268,18 @@ bool ApiClient::syncFeedingEvent(const FeedingEvent& event)
 
     HttpResponse response =
         _httpClient.post(buildUrl(endpoint), body, headers, EVENT_SYNC_TIMEOUT_MS);
+    updateBackendAvailability(response);
 
     return response.success && response.statusCode >= 200 && response.statusCode < 300;
 }
 
 RegistrationResult ApiClient::registerDevice()
 {
+    if (!canAttemptRequest())
+    {
+        return RegistrationResult::ConnectionError;
+    }
+
     String body = buildRegistrationBody();
 
     HttpHeaders headers;
@@ -226,6 +287,7 @@ RegistrationResult ApiClient::registerDevice()
     headers.emplace_back("Content-Type", CONTENT_TYPE);
 
     HttpResponse response = _httpClient.post(buildUrl(REGISTER_ENDPOINT), body, headers);
+    updateBackendAvailability(response);
 
     if (!response.success)
     {

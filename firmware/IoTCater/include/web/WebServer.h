@@ -9,13 +9,15 @@
 #include "storage/ConfigurationStorage.h"
 #include "services/Scheduler.h"
 #include "services/OtaService.h"
+#include "services/BackendConnectionService.h"
 
 class WebServer
 {
    public:
     explicit WebServer(Motor& motor, WiFiService& wifi, FeedingService& feedingService,
                        Scheduler& scheduler, Configuration& configuration,
-                       ConfigurationStorage& storage, OtaService& otaService);
+                       ConfigurationStorage& storage, OtaService& otaService,
+                       const BackendConnectionService& backendConnectionService);
     void begin();
     void stop();
     void update();
@@ -29,6 +31,7 @@ class WebServer
     Configuration& _configuration;
     Scheduler& _scheduler;
     OtaService& _otaService;
+    const BackendConnectionService& _backendConnectionService;
     bool _started = false;
     bool isValidSchedule(int hour, int minute, int portions) const;
     void registerRoutes();
