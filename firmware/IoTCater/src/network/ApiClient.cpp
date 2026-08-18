@@ -16,7 +16,7 @@ String ApiClient::buildRegistrationBody() const
 {
     JsonDocument document;
 
-    document["feederId"] = _deviceInfo.getDeviceId();
+    document["feederId"] = _deviceInfo.getFeederId();
     document["feederName"] = _deviceInfo.getModel();
 
     String json;
@@ -28,10 +28,9 @@ String ApiClient::buildRegistrationBody() const
 
 bool ApiClient::getFeederInfo(FeederInfo& feederInfo)
 {
-    String endpoint = String("/feeders/global/") + _deviceInfo.getDeviceId();
+    String endpoint = String("/feeders/global/") + _deviceInfo.getFeederId();
 
     HttpHeaders headers;
-
     headers.emplace_back("x-api-key", API_KEY);
 
     HttpResponse response = _httpClient.get(buildUrl(endpoint), headers);
@@ -42,7 +41,6 @@ bool ApiClient::getFeederInfo(FeederInfo& feederInfo)
     }
 
     JsonDocument document;
-
     DeserializationError error = deserializeJson(document, response.body);
 
     if (error)
@@ -51,11 +49,8 @@ bool ApiClient::getFeederInfo(FeederInfo& feederInfo)
     }
 
     feederInfo.feederQuantity = document["feederQuantity"] | 0;
-
     feederInfo.feederName = document["feederName"] | "";
-
     feederInfo.feederLogo = document["feederLogo"] | "";
-
     feederInfo.lastConnection = document["lastConection"] | "";
 
     return true;
@@ -64,10 +59,9 @@ bool ApiClient::getFeederInfo(FeederInfo& feederInfo)
 bool ApiClient::getMotorState(bool& motorState, int& portions, String& commandId,
                               uint32_t& configRevision)
 {
-    String endpoint = String("/feeders/motor-state/") + _deviceInfo.getDeviceId();
+    String endpoint = String("/feeders/motor-state/") + _deviceInfo.getFeederId();
 
     HttpHeaders headers;
-
     headers.emplace_back("x-api-key", API_KEY);
 
     HttpResponse response = _httpClient.get(buildUrl(endpoint), headers, MOTOR_STATE_TIMEOUT_MS);
@@ -78,7 +72,6 @@ bool ApiClient::getMotorState(bool& motorState, int& portions, String& commandId
     }
 
     JsonDocument document;
-
     DeserializationError error = deserializeJson(document, response.body);
 
     if (error)
@@ -96,10 +89,9 @@ bool ApiClient::getMotorState(bool& motorState, int& portions, String& commandId
 
 bool ApiClient::getRemoteConfiguration(Configuration& configuration, uint32_t& revision)
 {
-    String endpoint = String("/feeders/config/") + _deviceInfo.getDeviceId();
+    String endpoint = String("/feeders/config/") + _deviceInfo.getFeederId();
 
     HttpHeaders headers;
-
     headers.emplace_back("x-api-key", API_KEY);
 
     HttpResponse response = _httpClient.get(buildUrl(endpoint), headers, BACKGROUND_TIMEOUT_MS);
@@ -110,15 +102,9 @@ bool ApiClient::getRemoteConfiguration(Configuration& configuration, uint32_t& r
     }
 
     JsonDocument document;
-
     DeserializationError error = deserializeJson(document, response.body);
 
-    if (error)
-    {
-        return false;
-    }
-
-    if (!document["revision"].is<uint32_t>())
+    if (error || !document["revision"].is<uint32_t>())
     {
         return false;
     }
@@ -126,7 +112,6 @@ bool ApiClient::getRemoteConfiguration(Configuration& configuration, uint32_t& r
     revision = document["revision"].as<uint32_t>();
 
     Configuration newConfiguration;
-
     newConfiguration.stepsPerFeed = document["stepsPerFeed"];
 
     JsonArray schedules = document["schedules"].as<JsonArray>();
@@ -146,11 +131,8 @@ bool ApiClient::getRemoteConfiguration(Configuration& configuration, uint32_t& r
         }
 
         newConfiguration.schedules[i].hour = schedule["hour"] | 0;
-
         newConfiguration.schedules[i].minute = schedule["minute"] | 0;
-
         newConfiguration.schedules[i].portions = schedule["portions"] | 1;
-
         newConfiguration.schedules[i].enabled = schedule["enabled"] | false;
     }
 
@@ -168,25 +150,14 @@ bool ApiClient::completeMotorCommand(const String& commandId)
     headers.emplace_back("Content-Type", "application/json");
 
     JsonDocument document;
-
-    document["feederId"] = _deviceInfo.getDeviceId();
+    document["feederId"] = _deviceInfo.getFeederId();
     document["commandId"] = commandId;
 
     String body;
     serializeJson(document, body);
 
-    // HttpResponse response =
-    //     _httpClient.post(buildUrl(endpoint), body, headers, BACKGROUND_TIMEOUT_MS);
-    // return response.success && response.statusCode >= 200 && response.statusCode < 300;
-
     HttpResponse response =
         _httpClient.post(buildUrl(endpoint), body, headers, BACKGROUND_TIMEOUT_MS);
-
-    Serial.printf("[ApiClient] /feeder/complete -> success=%d status=%d\n", response.success,
-                  response.statusCode);
-
-    Serial.print("[ApiClient] Response: ");
-    Serial.println(response.body);
 
     return response.success && response.statusCode >= 200 && response.statusCode < 300;
 }
@@ -199,7 +170,7 @@ bool ApiClient::sendHeartbeat()
     headers.emplace_back("x-api-key", API_KEY);
     headers.emplace_back("Content-Type", "application/json");
 
-    const String body = "{\"feederId\":\"" + _deviceInfo.getDeviceId() + "\"}";
+    const String body = "{\"feederId\":\"" + _deviceInfo.getFeederId() + "\"}";
 
     HttpResponse response =
         _httpClient.post(buildUrl(endpoint), body, headers, BACKGROUND_TIMEOUT_MS);
@@ -222,19 +193,17 @@ bool ApiClient::syncFeedingEvent(const FeedingEvent& event)
         case FeedingSource::Physical:
             source = "physical";
             break;
-
         case FeedingSource::Scheduled:
             source = "scheduled";
             break;
-
         case FeedingSource::Remote:
             source = "remote";
             break;
     }
-    JsonDocument document;
 
+    JsonDocument document;
     document["eventId"] = event.eventId;
-    document["feederId"] = _deviceInfo.getDeviceId();
+    document["feederId"] = _deviceInfo.getFeederId();
     document["timestamp"] = event.timestamp;
     document["portions"] = event.portions;
     document["source"] = source;
@@ -253,7 +222,6 @@ RegistrationResult ApiClient::registerDevice()
     String body = buildRegistrationBody();
 
     HttpHeaders headers;
-
     headers.emplace_back("x-api-key", API_KEY);
     headers.emplace_back("Content-Type", CONTENT_TYPE);
 
@@ -268,19 +236,14 @@ RegistrationResult ApiClient::registerDevice()
     {
         case 201:
             return RegistrationResult::Registered;
-
         case 409:
             return RegistrationResult::AlreadyRegistered;
-
         case 401:
             return RegistrationResult::Unauthorized;
-
         case 400:
             return RegistrationResult::InvalidData;
-
         case 500:
             return RegistrationResult::ServerError;
-
         default:
             return RegistrationResult::ServerError;
     }
