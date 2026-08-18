@@ -150,45 +150,6 @@ Esto evita que un timeout HTTP o una indisponibilidad del backend pueda afectar 
 
 ---
 
-# 📁 Estructura del repositorio
-
-```text
-CatEater/
-│
-├── firmware/
-│   └── IoTCater/
-│       ├── include/
-│       │   ├── config/
-│       │   ├── device/
-│       │   ├── domain/
-│       │   ├── hardware/
-│       │   ├── network/
-│       │   ├── services/
-│       │   ├── storage/
-│       │   └── web/
-│       │
-│       ├── src/
-│       │   ├── device/
-│       │   ├── domain/
-│       │   ├── hardware/
-│       │   ├── network/
-│       │   ├── services/
-│       │   ├── storage/
-│       │   ├── web/
-│       │   └── main.cpp
-│       │
-│       └── platformio.ini
-│
-├── backend/
-│   └── ...
-│
-└── README.md
-```
-
-La estructura puede evolucionar a medida que el backend y el frontend se incorporen formalmente al repositorio, pero el objetivo es mantener responsabilidades separadas y evitar dependencias innecesarias entre capas.
-
----
-
 # ⚙️ Firmware
 
 El firmware está desarrollado en **C++ sobre Arduino**, utilizando PlatformIO.
