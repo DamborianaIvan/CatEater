@@ -7,14 +7,16 @@
 
 WebServer::WebServer(Motor& motor, WiFiService& wifi, FeedingService& feedingService,
                      Scheduler& scheduler, Configuration& configuration,
-                     ConfigurationStorage& storage, OtaService& otaService)
+                     ConfigurationStorage& storage, OtaService& otaService,
+                     const BackendConnectionService& backendConnectionService)
     : _motor(motor),
       _wifi(wifi),
       _feedingService(feedingService),
       _storage(storage),
       _configuration(configuration),
       _scheduler(scheduler),
-      _otaService(otaService)
+      _otaService(otaService),
+      _backendConnectionService(backendConnectionService)
 {
 }
 
@@ -108,6 +110,7 @@ void WebServer::handleStatus()
 {
     const bool feeding = _motor.isFeeding();
     const bool wifiConnected = _wifi.isConnected();
+    const bool backendAvailable = _backendConnectionService.isAvailable();
     const String ipAddress = _wifi.getIpAddress();
 
     String response = "{";
@@ -117,6 +120,10 @@ void WebServer::handleStatus()
 
     response += "\"wifiConnected\": ";
     response += wifiConnected ? "true" : "false";
+    response += ",";
+
+    response += "\"backendAvailable\": ";
+    response += backendAvailable ? "true" : "false";
     response += ",";
 
     response += "\"ipAddress\": ";
@@ -237,7 +244,6 @@ void WebServer::handleUpdateConfig()
         newConfiguration.schedules[i].enabled = enabled;
     }
 
-    // Validacion de horarios duplicados
     for (uint8_t i = 0; i < MAX_SCHEDULES; ++i)
     {
         if (!newConfiguration.schedules[i].enabled)
