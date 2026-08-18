@@ -12,6 +12,11 @@ String DeviceInfo::getDeviceId() const
     return String(deviceId);
 }
 
+String DeviceInfo::getFeederId() const
+{
+    return getDeviceId();
+}
+
 String DeviceInfo::getFirmwareVersion() const
 {
     return Firmware::VERSION;
@@ -76,6 +81,9 @@ void DeviceInfo::printBootInfo() const
 
     Serial.print("Device ID      : ");
     Serial.println(getDeviceId());
+
+    Serial.print("Feeder ID      : ");
+    Serial.println(getFeederId());
 
     Serial.print("MAC Address    : ");
     Serial.println(getMacAddress());
