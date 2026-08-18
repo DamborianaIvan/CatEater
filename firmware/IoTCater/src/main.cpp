@@ -125,12 +125,14 @@ void loop()
     buttonService.update();
 
     provisioningService.update();
+
     if (provisioningService.consumeProvisioned())
     {
         webServer.begin();
     }
 
     wifi.update();
+
     if (hasWifiJustConnected())
     {
         handleWifiConnected();
@@ -139,8 +141,13 @@ void loop()
     timeService.update();
 
     scheduler.update();
-    remoteStateService.update();
     webServer.update();
-    heartbeatService.update();
-    syncService.update();
+
+    // No ejecutar tareas de red bloqueantes mientras el motor alimenta.
+    if (!motor.isFeeding())
+    {
+        remoteStateService.update();
+        heartbeatService.update();
+        syncService.update();
+    }
 }
