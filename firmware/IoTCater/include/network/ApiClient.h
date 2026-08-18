@@ -38,7 +38,7 @@ class ApiClient
 
     static constexpr char CONTENT_TYPE[] = "application/json";
     static constexpr char API_KEY[] = "ExCECoLysoco";
-    static constexpr char BASE_URL[] = "http://192.168.1.33:5000";
+    static constexpr char BASE_URL[] = "http://192.168.1.38:5000";
 
     static constexpr char REGISTER_ENDPOINT[] = "/feeders/register";
     static constexpr uint16_t MOTOR_STATE_TIMEOUT_MS = 500;

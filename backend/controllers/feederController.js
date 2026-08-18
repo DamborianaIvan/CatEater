@@ -111,12 +111,18 @@ const getFeederConfiguration = async (req, res) => {
         schedules: createDefaultSchedules()
       };
     }
+    const schedules = configuration.schedules.map((schedule) => ({
+    hour: schedule.hour,
+    minute: schedule.minute,
+    portions: schedule.portions,
+    enabled: schedule.enabled
+  }));
 
-    return res.status(200).json({
-      revision: configuration.revision,
-      stepsPerFeed: configuration.stepsPerFeed,
-      schedules: configuration.schedules
-    });
+  return res.status(200).json({
+    revision: configuration.revision,
+    stepsPerFeed: configuration.stepsPerFeed,
+    schedules
+  });
 
   } catch (error) {
     console.error(
