@@ -3,11 +3,12 @@
 ConfigurationSyncService::ConfigurationSyncService(ApiClient& apiClient,
                                                    ConfigurationStorage& configurationStorage,
                                                    ConfigurationRevisionStorage& revisionStorage,
-                                                   Configuration& configuration)
+                                                   Configuration& configuration, Motor& motor)
     : _apiClient(apiClient),
       _configurationStorage(configurationStorage),
       _revisionStorage(revisionStorage),
-      _configuration(configuration)
+      _configuration(configuration),
+      _motor(motor)
 {
 }
 
@@ -84,6 +85,13 @@ bool ConfigurationSyncService::applyRemoteConfiguration(uint32_t remoteRevision)
     }
 
     _configuration = newConfiguration;
+
+    if (!_motor.setStepsPerFeed(newConfiguration.stepsPerFeed))
+    {
+        Serial.println("[ConfigurationSyncService] Error aplicando stepsPerFeed al motor.");
+
+        return false;
+    }
 
     _localRevision = receivedRevision;
 
