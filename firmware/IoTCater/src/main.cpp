@@ -21,6 +21,7 @@
 #include "services/SyncService.h"
 #include "services/OtaService.h"
 #include "services/RemoteStateService.h"
+#include "storage/DeviceCredentialStorage.h"
 
 Motor motor;
 FeedingHistoryService feedingHistoryService;
@@ -48,6 +49,7 @@ ConfigurationSyncService configurationSyncService(apiClient, storage, configurat
                                                   configuration, motor);
 RemoteStateService remoteStateService(apiClient, feedingService, wifi, remoteCommandStorage,
                                       configurationSyncService);
+DeviceCredentialStorage deviceCredentialStorage;
 void handleWifiConnected()
 {
     deviceInfo.printBootInfo();
@@ -120,6 +122,7 @@ void setup()
     remoteCommandStorage.begin();
     remoteStateService.loadCommand();
     configurationSyncService.begin();
+    deviceCredentialStorage.begin();
 }
 
 void loop()
