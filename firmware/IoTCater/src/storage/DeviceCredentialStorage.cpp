@@ -31,7 +31,6 @@ bool DeviceCredentialStorage::load(String& credential) const
     EEPROM.get(CREDENTIAL_ADDRESS, stored);
 
     if (stored.signature != SIGNATURE || stored.version != VERSION ||
-        stored.length != credential.length() ||
         stored.length != CREDENTIAL_LENGTH ||
         !hasTerminator(stored.credential, sizeof(stored.credential)))
     {
