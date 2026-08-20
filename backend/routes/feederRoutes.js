@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const feederController = require('../controllers/feederController');
 const verifyToken = require('../middlewares/authMiddleware'); // Middleware para proteger rutas (JWT)
+const authenticateDevice = require('../middlewares/deviceAuthMiddleware');
 /**
  * @swagger
  * tags:
@@ -85,6 +86,9 @@ const verifyToken = require('../middlewares/authMiddleware'); // Middleware para
  *               error: "Hubo un error con el servidor"
  */
 router.post('/feeders/register', feederController.registerFeeder);
+
+//Enrolar comedero para obtener credentials
+router.post("/feeders/enroll", feederController.enrollDevice);
 
 // Obtener comederos desde NodeMCU por feederId
 /**
@@ -873,7 +877,7 @@ router.post('/feeders/history',feederController.syncFeedingHistory);
 router.post("/feeders/heartbeat", feederController.heartbeat);
 
 //Obtener configuracion defeeder
-router.get('/feeders/config/:feederId',feederController.getFeederConfiguration);
+router.get('/feeders/config/:feederId', authenticateDevice,feederController.getFeederConfiguration);
 
 //Edita configuracion defeeder
 router.put('/feeders/:feederId/config',verifyToken,feederController.updateFeederConfiguration);
