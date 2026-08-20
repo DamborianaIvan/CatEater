@@ -877,7 +877,7 @@ router.post('/feeders/history',feederController.syncFeedingHistory);
 router.post("/feeders/heartbeat", authenticateDevice,feederController.heartbeat);
 
 //Obtener configuracion desde feeder
-router.get('/feeders/config/:feederId', feederController.getFeederConfiguration);
+router.get('/feeders/config/:feederId', verifyToken,feederController.getFeederConfiguration);
 
 //Edita configuracion defeeder
 router.put('/feeders/:feederId/config',verifyToken,feederController.updateFeederConfiguration);
