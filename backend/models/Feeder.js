@@ -8,6 +8,11 @@ const FeederSchema = new mongoose.Schema({
   feederAsign: { type: Boolean, default: false },
   feederQuantity: { type: Number, default: 0 },
   lastConection: { type: Date, default: Date.now },
+  deviceCredentialHash: {
+    type: String,
+    default: null,
+    select: false
+  },
   motorInfo: {
     startHours: {
       type: [Date]

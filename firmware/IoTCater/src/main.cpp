@@ -1,4 +1,3 @@
-
 #include <Arduino.h>
 #include "hardware/Motor.h"
 #include "services/WifiService.h"
@@ -20,7 +19,7 @@
 #include "services/FeedingHistoryService.h"
 #include "services/SyncService.h"
 #include "services/OtaService.h"
-#include "services/RemoteStateService.h"
+#include "storage/DeviceCredentialStorage.h"
 
 Motor motor;
 FeedingHistoryService feedingHistoryService;
@@ -34,7 +33,8 @@ ConfigurationStorage storage;
 WifiCredentialsStorage wifiCredentialsStorage;
 DeviceInfo deviceInfo(wifi);
 BackendConnectionService backendConnectionService;
-ApiClient apiClient(httpClient, deviceInfo, backendConnectionService);
+DeviceCredentialStorage deviceCredentialStorage;
+ApiClient apiClient(httpClient, deviceInfo, backendConnectionService, deviceCredentialStorage);
 RemoteCommandStorage remoteCommandStorage;
 OtaService otaService(motor);
 WebServer webServer(motor, wifi, feedingService, scheduler, configuration, storage, otaService,
@@ -48,24 +48,57 @@ ConfigurationSyncService configurationSyncService(apiClient, storage, configurat
                                                   configuration, motor);
 RemoteStateService remoteStateService(apiClient, feedingService, wifi, remoteCommandStorage,
                                       configurationSyncService);
+
 void handleWifiConnected()
 {
     deviceInfo.printBootInfo();
 
-    RegistrationResult result = apiClient.registerDevice();
+    RegistrationResult registrationResult = apiClient.registerDevice();
 
-    switch (result)
+    switch (registrationResult)
     {
         case RegistrationResult::Registered:
-            Serial.println("[ApiClient] Dispositivo registrado correctamente.");
-            break;
-
         case RegistrationResult::AlreadyRegistered:
-            Serial.println("[ApiClient] Dispositivo ya registrado.");
+        {
+            if (apiClient.hasDeviceCredential())
+            {
+                Serial.println("[ApiClient] Dispositivo registrado y credencial disponible.");
+                break;
+            }
+
+            EnrollmentResult enrollmentResult = apiClient.enrollDevice();
+
+            switch (enrollmentResult)
+            {
+                case EnrollmentResult::Enrolled:
+                    Serial.println("[ApiClient] Dispositivo enrolado correctamente.");
+                    break;
+
+                case EnrollmentResult::AlreadyEnrolled:
+                    Serial.println("[ApiClient] Dispositivo ya está enrolado, pero la credencial local no está disponible.");
+                    break;
+
+                case EnrollmentResult::Unauthorized:
+                    Serial.println("[ApiClient] Error de autenticacion durante enrollment.");
+                    break;
+
+                case EnrollmentResult::NotFound:
+                    Serial.println("[ApiClient] Feeder no encontrado durante enrollment.");
+                    break;
+
+                case EnrollmentResult::ServerError:
+                    Serial.println("[ApiClient] Error del servidor durante enrollment.");
+                    break;
+
+                case EnrollmentResult::ConnectionError:
+                    Serial.println("[ApiClient] Error de conexion durante enrollment.");
+                    break;
+            }
             break;
+        }
 
         case RegistrationResult::Unauthorized:
-            Serial.println("[ApiClient] Error de autenticacion.");
+            Serial.println("[ApiClient] Error de autenticacion durante registro.");
             break;
 
         case RegistrationResult::InvalidData:
@@ -73,11 +106,11 @@ void handleWifiConnected()
             break;
 
         case RegistrationResult::ServerError:
-            Serial.println("[ApiClient] Error del servidor.");
+            Serial.println("[ApiClient] Error del servidor durante registro.");
             break;
 
         case RegistrationResult::ConnectionError:
-            Serial.println("[ApiClient] Error de conexion.");
+            Serial.println("[ApiClient] Error de conexion durante registro.");
             break;
     }
 }
@@ -85,14 +118,10 @@ void handleWifiConnected()
 bool hasWifiJustConnected()
 {
     static ConnectionState previousState = ConnectionState::Disconnected;
-
     ConnectionState currentState = wifi.getConnectionState();
-
-    bool connected =
-        currentState == ConnectionState::Connected && previousState != ConnectionState::Connected;
-
+    bool connected = currentState == ConnectionState::Connected &&
+                     previousState != ConnectionState::Connected;
     previousState = currentState;
-
     return connected;
 }
 
@@ -101,6 +130,7 @@ void setup()
     Serial.begin(115200);
     motor.begin();
     storage.begin();
+    deviceCredentialStorage.begin();
     timeService.begin();
     backendConnectionService.begin();
 
@@ -126,7 +156,6 @@ void loop()
 {
     motor.update();
     buttonService.update();
-
     provisioningService.update();
 
     if (provisioningService.consumeProvisioned())
@@ -142,7 +171,6 @@ void loop()
     }
 
     timeService.update();
-
     scheduler.update();
     webServer.update();
 

@@ -8,6 +8,7 @@
 #include "domain/FeedingEvent.h"
 #include "domain/Configuration.h"
 #include "services/BackendConnectionService.h"
+#include "storage/DeviceCredentialStorage.h"
 
 enum class RegistrationResult
 {
@@ -19,13 +20,26 @@ enum class RegistrationResult
     ConnectionError
 };
 
+enum class EnrollmentResult
+{
+    Enrolled,
+    AlreadyEnrolled,
+    Unauthorized,
+    NotFound,
+    ServerError,
+    ConnectionError
+};
+
 class ApiClient
 {
    public:
     ApiClient(HttpClient& httpClient, const DeviceInfo& deviceInfo,
-              BackendConnectionService& backendConnectionService);
+              BackendConnectionService& backendConnectionService,
+              DeviceCredentialStorage& deviceCredentialStorage);
 
     RegistrationResult registerDevice();
+    EnrollmentResult enrollDevice();
+    bool hasDeviceCredential() const;
     bool getFeederInfo(FeederInfo& feederInfo);
     bool getRemoteConfiguration(Configuration& configuration, uint32_t& revision);
     bool getMotorState(bool& motorState, int& portions, String& commandId,
@@ -38,12 +52,14 @@ class ApiClient
     HttpClient& _httpClient;
     const DeviceInfo& _deviceInfo;
     BackendConnectionService& _backendConnectionService;
+    DeviceCredentialStorage& _deviceCredentialStorage;
 
     static constexpr char CONTENT_TYPE[] = "application/json";
     static constexpr char API_KEY[] = "ExCECoLysoco";
-    static constexpr char BASE_URL[] = "http://192.168.1.38:5000";
+    static constexpr char BASE_URL[] = "http://192.168.1.41:5000";
 
     static constexpr char REGISTER_ENDPOINT[] = "/feeders/register";
+    static constexpr char ENROLL_ENDPOINT[] = "/feeders/enroll";
     static constexpr uint16_t MOTOR_STATE_TIMEOUT_MS = 500;
     static constexpr uint16_t EVENT_SYNC_TIMEOUT_MS = 1000;
     static constexpr uint16_t BACKGROUND_TIMEOUT_MS = 1000;
