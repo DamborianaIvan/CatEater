@@ -53,24 +53,52 @@ void handleWifiConnected()
 {
     deviceInfo.printBootInfo();
 
-    RegistrationResult result = apiClient.registerDevice();
+    RegistrationResult registrationResult = apiClient.registerDevice();
 
-    switch (result)
+    switch (registrationResult)
     {
         case RegistrationResult::Registered:
-            Serial.println("[ApiClient] Dispositivo registrado y enrolado correctamente.");
-            break;
-
-        case RegistrationResult::Enrolled:
-            Serial.println("[ApiClient] Dispositivo existente enrolado correctamente.");
-            break;
-
         case RegistrationResult::AlreadyRegistered:
-            Serial.println("[ApiClient] Dispositivo ya registrado y enrolado.");
+        {
+            if (apiClient.hasDeviceCredential())
+            {
+                Serial.println("[ApiClient] Dispositivo registrado y credencial disponible.");
+                break;
+            }
+
+            EnrollmentResult enrollmentResult = apiClient.enrollDevice();
+
+            switch (enrollmentResult)
+            {
+                case EnrollmentResult::Enrolled:
+                    Serial.println("[ApiClient] Dispositivo enrolado correctamente.");
+                    break;
+
+                case EnrollmentResult::AlreadyEnrolled:
+                    Serial.println("[ApiClient] Dispositivo ya está enrolado, pero la credencial local no está disponible.");
+                    break;
+
+                case EnrollmentResult::Unauthorized:
+                    Serial.println("[ApiClient] Error de autenticacion durante enrollment.");
+                    break;
+
+                case EnrollmentResult::NotFound:
+                    Serial.println("[ApiClient] Feeder no encontrado durante enrollment.");
+                    break;
+
+                case EnrollmentResult::ServerError:
+                    Serial.println("[ApiClient] Error del servidor durante enrollment.");
+                    break;
+
+                case EnrollmentResult::ConnectionError:
+                    Serial.println("[ApiClient] Error de conexion durante enrollment.");
+                    break;
+            }
             break;
+        }
 
         case RegistrationResult::Unauthorized:
-            Serial.println("[ApiClient] Error de autenticacion.");
+            Serial.println("[ApiClient] Error de autenticacion durante registro.");
             break;
 
         case RegistrationResult::InvalidData:
@@ -78,11 +106,11 @@ void handleWifiConnected()
             break;
 
         case RegistrationResult::ServerError:
-            Serial.println("[ApiClient] Error del servidor.");
+            Serial.println("[ApiClient] Error del servidor durante registro.");
             break;
 
         case RegistrationResult::ConnectionError:
-            Serial.println("[ApiClient] Error de conexion.");
+            Serial.println("[ApiClient] Error de conexion durante registro.");
             break;
     }
 }
