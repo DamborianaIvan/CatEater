@@ -1,4 +1,3 @@
-
 #include <Arduino.h>
 #include "hardware/Motor.h"
 #include "services/WifiService.h"
@@ -20,7 +19,6 @@
 #include "services/FeedingHistoryService.h"
 #include "services/SyncService.h"
 #include "services/OtaService.h"
-#include "services/RemoteStateService.h"
 #include "storage/DeviceCredentialStorage.h"
 
 Motor motor;
@@ -35,7 +33,8 @@ ConfigurationStorage storage;
 WifiCredentialsStorage wifiCredentialsStorage;
 DeviceInfo deviceInfo(wifi);
 BackendConnectionService backendConnectionService;
-ApiClient apiClient(httpClient, deviceInfo, backendConnectionService);
+DeviceCredentialStorage deviceCredentialStorage;
+ApiClient apiClient(httpClient, deviceInfo, backendConnectionService, deviceCredentialStorage);
 RemoteCommandStorage remoteCommandStorage;
 OtaService otaService(motor);
 WebServer webServer(motor, wifi, feedingService, scheduler, configuration, storage, otaService,
@@ -49,7 +48,7 @@ ConfigurationSyncService configurationSyncService(apiClient, storage, configurat
                                                   configuration, motor);
 RemoteStateService remoteStateService(apiClient, feedingService, wifi, remoteCommandStorage,
                                       configurationSyncService);
-DeviceCredentialStorage deviceCredentialStorage;
+
 void handleWifiConnected()
 {
     deviceInfo.printBootInfo();
@@ -59,11 +58,15 @@ void handleWifiConnected()
     switch (result)
     {
         case RegistrationResult::Registered:
-            Serial.println("[ApiClient] Dispositivo registrado correctamente.");
+            Serial.println("[ApiClient] Dispositivo registrado y enrolado correctamente.");
+            break;
+
+        case RegistrationResult::Enrolled:
+            Serial.println("[ApiClient] Dispositivo existente enrolado correctamente.");
             break;
 
         case RegistrationResult::AlreadyRegistered:
-            Serial.println("[ApiClient] Dispositivo ya registrado.");
+            Serial.println("[ApiClient] Dispositivo ya registrado y enrolado.");
             break;
 
         case RegistrationResult::Unauthorized:
@@ -87,14 +90,10 @@ void handleWifiConnected()
 bool hasWifiJustConnected()
 {
     static ConnectionState previousState = ConnectionState::Disconnected;
-
     ConnectionState currentState = wifi.getConnectionState();
-
-    bool connected =
-        currentState == ConnectionState::Connected && previousState != ConnectionState::Connected;
-
+    bool connected = currentState == ConnectionState::Connected &&
+                     previousState != ConnectionState::Connected;
     previousState = currentState;
-
     return connected;
 }
 
@@ -103,6 +102,7 @@ void setup()
     Serial.begin(115200);
     motor.begin();
     storage.begin();
+    deviceCredentialStorage.begin();
     timeService.begin();
     backendConnectionService.begin();
 
@@ -122,14 +122,12 @@ void setup()
     remoteCommandStorage.begin();
     remoteStateService.loadCommand();
     configurationSyncService.begin();
-    deviceCredentialStorage.begin();
 }
 
 void loop()
 {
     motor.update();
     buttonService.update();
-
     provisioningService.update();
 
     if (provisioningService.consumeProvisioned())
@@ -145,7 +143,6 @@ void loop()
     }
 
     timeService.update();
-
     scheduler.update();
     webServer.update();
 
