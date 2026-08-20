@@ -75,7 +75,9 @@ void handleWifiConnected()
                     break;
 
                 case EnrollmentResult::AlreadyEnrolled:
-                    Serial.println("[ApiClient] Dispositivo ya está enrolado, pero la credencial local no está disponible.");
+                    Serial.println(
+                        "[ApiClient] Dispositivo ya está enrolado, pero la credencial local no "
+                        "está disponible.");
                     break;
 
                 case EnrollmentResult::Unauthorized:
@@ -119,8 +121,8 @@ bool hasWifiJustConnected()
 {
     static ConnectionState previousState = ConnectionState::Disconnected;
     ConnectionState currentState = wifi.getConnectionState();
-    bool connected = currentState == ConnectionState::Connected &&
-                     previousState != ConnectionState::Connected;
+    bool connected =
+        currentState == ConnectionState::Connected && previousState != ConnectionState::Connected;
     previousState = currentState;
     return connected;
 }
