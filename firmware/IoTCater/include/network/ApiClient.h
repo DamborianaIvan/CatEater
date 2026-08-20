@@ -13,10 +13,19 @@
 enum class RegistrationResult
 {
     Registered,
-    Enrolled,
     AlreadyRegistered,
     Unauthorized,
     InvalidData,
+    ServerError,
+    ConnectionError
+};
+
+enum class EnrollmentResult
+{
+    Enrolled,
+    AlreadyEnrolled,
+    Unauthorized,
+    NotFound,
     ServerError,
     ConnectionError
 };
@@ -29,6 +38,8 @@ class ApiClient
               DeviceCredentialStorage& deviceCredentialStorage);
 
     RegistrationResult registerDevice();
+    EnrollmentResult enrollDevice();
+    bool hasDeviceCredential() const;
     bool getFeederInfo(FeederInfo& feederInfo);
     bool getRemoteConfiguration(Configuration& configuration, uint32_t& revision);
     bool getMotorState(bool& motorState, int& portions, String& commandId,
@@ -48,6 +59,7 @@ class ApiClient
     static constexpr char BASE_URL[] = "http://192.168.1.38:5000";
 
     static constexpr char REGISTER_ENDPOINT[] = "/feeders/register";
+    static constexpr char ENROLL_ENDPOINT[] = "/feeders/enroll";
     static constexpr uint16_t MOTOR_STATE_TIMEOUT_MS = 500;
     static constexpr uint16_t EVENT_SYNC_TIMEOUT_MS = 1000;
     static constexpr uint16_t BACKGROUND_TIMEOUT_MS = 1000;
