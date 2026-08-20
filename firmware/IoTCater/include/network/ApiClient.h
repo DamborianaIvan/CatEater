@@ -8,10 +8,12 @@
 #include "domain/FeedingEvent.h"
 #include "domain/Configuration.h"
 #include "services/BackendConnectionService.h"
+#include "storage/DeviceCredentialStorage.h"
 
 enum class RegistrationResult
 {
     Registered,
+    Enrolled,
     AlreadyRegistered,
     Unauthorized,
     InvalidData,
@@ -23,7 +25,8 @@ class ApiClient
 {
    public:
     ApiClient(HttpClient& httpClient, const DeviceInfo& deviceInfo,
-              BackendConnectionService& backendConnectionService);
+              BackendConnectionService& backendConnectionService,
+              DeviceCredentialStorage& deviceCredentialStorage);
 
     RegistrationResult registerDevice();
     bool getFeederInfo(FeederInfo& feederInfo);
@@ -38,6 +41,7 @@ class ApiClient
     HttpClient& _httpClient;
     const DeviceInfo& _deviceInfo;
     BackendConnectionService& _backendConnectionService;
+    DeviceCredentialStorage& _deviceCredentialStorage;
 
     static constexpr char CONTENT_TYPE[] = "application/json";
     static constexpr char API_KEY[] = "ExCECoLysoco";
