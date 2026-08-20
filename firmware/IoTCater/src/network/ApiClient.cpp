@@ -34,8 +34,10 @@ bool ApiClient::canAttemptRequest() const
 
 void ApiClient::updateBackendAvailability(const HttpResponse& response)
 {
-    if (response.success && response.statusCode > 0) _backendConnectionService.recordSuccess();
-    else _backendConnectionService.recordFailure();
+    if (response.success && response.statusCode > 0)
+        _backendConnectionService.recordSuccess();
+    else
+        _backendConnectionService.recordFailure();
 }
 
 bool ApiClient::getFeederInfo(FeederInfo& feederInfo)
@@ -193,30 +195,64 @@ EnrollmentResult ApiClient::enrollDevice()
     headers.emplace_back("x-api-key", API_KEY);
     headers.emplace_back("Content-Type", CONTENT_TYPE);
 
+    Serial.println("[ApiClient] Iniciando enrollment del dispositivo...");
+
     HttpResponse response = _httpClient.post(buildUrl(ENROLL_ENDPOINT), body, headers);
     updateBackendAvailability(response);
 
-    if (!response.success) return EnrollmentResult::ConnectionError;
+    Serial.print("[ApiClient] Enrollment HTTP status: ");
+    Serial.println(response.statusCode);
+
+    if (!response.success)
+    {
+        Serial.println("[ApiClient] Enrollment sin respuesta HTTP valida.");
+        return EnrollmentResult::ConnectionError;
+    }
+
     if (response.statusCode == 401) return EnrollmentResult::Unauthorized;
     if (response.statusCode == 404) return EnrollmentResult::NotFound;
     if (response.statusCode == 409) return EnrollmentResult::AlreadyEnrolled;
     if (response.statusCode >= 500) return EnrollmentResult::ServerError;
-    if (response.statusCode != 201) return EnrollmentResult::ServerError;
+    if (response.statusCode != 200 && response.statusCode != 201)
+    {
+        Serial.println("[ApiClient] Codigo HTTP inesperado durante enrollment.");
+        return EnrollmentResult::ServerError;
+    }
 
     JsonDocument responseDocument;
-    if (deserializeJson(responseDocument, response.body)) return EnrollmentResult::ServerError;
+    DeserializationError error = deserializeJson(responseDocument, response.body);
 
-    const char* credential = responseDocument["deviceCredential"] | nullptr;
-    if (!credential || !DeviceCredentialStorage::isValid(String(credential)))
+    if (error)
     {
+        Serial.print("[ApiClient] Error parseando respuesta de enrollment: ");
+        Serial.println(error.c_str());
         return EnrollmentResult::ServerError;
     }
 
-    if (!_deviceCredentialStorage.save(String(credential)))
+    const char* credential = responseDocument["deviceCredential"];
+
+    if (!credential)
     {
+        Serial.println("[ApiClient] La respuesta de enrollment no contiene deviceCredential.");
         return EnrollmentResult::ServerError;
     }
 
+    const String deviceCredential = String(credential);
+
+    if (!DeviceCredentialStorage::isValid(deviceCredential))
+    {
+        Serial.print("[ApiClient] deviceCredential invalida. Longitud: ");
+        Serial.println(deviceCredential.length());
+        return EnrollmentResult::ServerError;
+    }
+
+    if (!_deviceCredentialStorage.save(deviceCredential))
+    {
+        Serial.println("[ApiClient] No se pudo persistir deviceCredential.");
+        return EnrollmentResult::ServerError;
+    }
+
+    Serial.println("[ApiClient] deviceCredential almacenada correctamente.");
     return EnrollmentResult::Enrolled;
 }
 
