@@ -124,13 +124,40 @@ bool ApiClient::completeMotorCommand(const String& commandId)
 bool ApiClient::sendHeartbeat()
 {
     if (!canAttemptRequest()) return false;
+
+    String deviceCredential;
+    if (!_deviceCredentialStorage.load(deviceCredential))
+    {
+        Serial.println("[ApiClient] No se pudo cargar deviceCredential para heartbeat.");
+        return false;
+    }
+
     HttpHeaders headers;
-    headers.emplace_back("x-api-key", API_KEY);
-    headers.emplace_back("Content-Type", "application/json");
-    const String body = "{\"feederId\":\"" + _deviceInfo.getFeederId() + "\"}";
-    HttpResponse response = _httpClient.post(buildUrl("/feeders/heartbeat"), body, headers, BACKGROUND_TIMEOUT_MS);
+    headers.emplace_back("x-device-credential", deviceCredential);
+    headers.emplace_back("Content-Type", CONTENT_TYPE);
+
+    JsonDocument document;
+    document["feederId"] = _deviceInfo.getFeederId();
+
+    String body;
+    serializeJson(document, body);
+
+    HttpResponse response = _httpClient.post(
+        buildUrl(DEVICE_HEARTBEAT_ENDPOINT), body, headers, BACKGROUND_TIMEOUT_MS);
+
     updateBackendAvailability(response);
-    return response.success && response.statusCode >= 200 && response.statusCode < 300;
+
+    if (response.success && response.statusCode >= 200 && response.statusCode < 300)
+        return true;
+
+    if (response.statusCode == 401)
+        Serial.println("[ApiClient] Heartbeat rechazado: deviceCredential invalida o ausente.");
+    else if (response.statusCode == 404)
+        Serial.println("[ApiClient] Heartbeat rechazado: feeder no encontrado.");
+    else
+        Serial.println("[ApiClient] Error al enviar heartbeat autenticado.");
+
+    return false;
 }
 
 bool ApiClient::syncFeedingEvent(const FeedingEvent& event)
