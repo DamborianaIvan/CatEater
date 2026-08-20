@@ -142,17 +142,28 @@ const getFeederConfiguration = async (req, res) => {
 
 // Registrar comedero (desde NodeMCU)
 const registerFeeder = async (req, res) => {
-  const apiKey = req.headers['x-api-key'];
+const apiKey = req.headers['x-api-key'];
+
   if (apiKey !== process.env.NODEMCU_API_KEY) {
     return res.status(401).json({ error: 'No autorizado - API Key inválida' });
   }
 
   const feederInfo = req.body;
+  console.log("[REGISTER] feederId:", feederInfo.feederId);
+  console.log("[REGISTER] MongoDB:", Feeder.db.name);
   if (!feederInfo || Object.keys(feederInfo).length === 0) {
     return res.status(400).json({ error: 'Datos faltantes' });
   }
 
   try {
+    const existedFeeder = await Feeder.findOne({
+  feederId: feederInfo.feederId
+});
+
+console.log(
+  "[REGISTER] feeder encontrado:",
+  existedFeeder?.feederId
+);
     const existingFeeder = await Feeder.findOne({ feederId: feederInfo.feederId });
     if (existingFeeder) {
       return res.status(409).json({ error: 'Ya existe un dispositivo con ese feederId' });

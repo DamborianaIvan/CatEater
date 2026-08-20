@@ -60,7 +60,7 @@ class ApiClient
 
     static constexpr char REGISTER_ENDPOINT[] = "/feeders/register";
     static constexpr char ENROLL_ENDPOINT[] = "/feeders/enroll";
-    static constexpr char DEVICE_HEARTBEAT_ENDPOINT[] = "/feeders/device-heartbeat";
+    static constexpr char DEVICE_HEARTBEAT_ENDPOINT[] = "/feeders/heartbeat";
     static constexpr uint16_t MOTOR_STATE_TIMEOUT_MS = 500;
     static constexpr uint16_t EVENT_SYNC_TIMEOUT_MS = 1000;
     static constexpr uint16_t BACKGROUND_TIMEOUT_MS = 1000;

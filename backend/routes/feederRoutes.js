@@ -874,10 +874,10 @@ router.get('/feeder/:feederId/historial', verifyToken, feederController.getFeede
 router.post('/feeders/history',feederController.syncFeedingHistory);
 
 //Comunica el estado del dispositivo hacia el backend
-router.post("/feeders/heartbeat", feederController.heartbeat);
+router.post("/feeders/heartbeat", authenticateDevice,feederController.heartbeat);
 
-//Obtener configuracion defeeder
-router.get('/feeders/config/:feederId', authenticateDevice,feederController.getFeederConfiguration);
+//Obtener configuracion desde feeder
+router.get('/feeders/config/:feederId', feederController.getFeederConfiguration);
 
 //Edita configuracion defeeder
 router.put('/feeders/:feederId/config',verifyToken,feederController.updateFeederConfiguration);
