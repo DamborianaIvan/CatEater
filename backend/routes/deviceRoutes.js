@@ -15,4 +15,7 @@ router.get("/devices/:feederId/auth-test", authenticateDevice, (req, res) => {
   });
 });
 
+// Heartbeat autenticado del dispositivo.
+router.post("/feeders/device-heartbeat", authenticateDevice, deviceController.heartbeatDevice);
+
 module.exports = router;
