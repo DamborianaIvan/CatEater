@@ -161,7 +161,7 @@ RegistrationResult ApiClient::registerDevice()
 {
     if (!canAttemptRequest()) return RegistrationResult::ConnectionError;
 
-    String body = buildRegistrationBody();
+    const String body = buildRegistrationBody();
     HttpHeaders headers;
     headers.emplace_back("x-api-key", API_KEY);
     headers.emplace_back("Content-Type", CONTENT_TYPE);
@@ -173,26 +173,55 @@ RegistrationResult ApiClient::registerDevice()
     if (response.statusCode == 401) return RegistrationResult::Unauthorized;
     if (response.statusCode == 400) return RegistrationResult::InvalidData;
     if (response.statusCode >= 500) return RegistrationResult::ServerError;
+    if (response.statusCode == 201) return RegistrationResult::Registered;
+    if (response.statusCode == 409) return RegistrationResult::AlreadyRegistered;
 
-    if (response.statusCode == 201 || response.statusCode == 200)
+    return RegistrationResult::ServerError;
+}
+
+EnrollmentResult ApiClient::enrollDevice()
+{
+    if (!canAttemptRequest()) return EnrollmentResult::ConnectionError;
+
+    JsonDocument document;
+    document["feederId"] = _deviceInfo.getFeederId();
+
+    String body;
+    serializeJson(document, body);
+
+    HttpHeaders headers;
+    headers.emplace_back("x-api-key", API_KEY);
+    headers.emplace_back("Content-Type", CONTENT_TYPE);
+
+    HttpResponse response = _httpClient.post(buildUrl(ENROLL_ENDPOINT), body, headers);
+    updateBackendAvailability(response);
+
+    if (!response.success) return EnrollmentResult::ConnectionError;
+    if (response.statusCode == 401) return EnrollmentResult::Unauthorized;
+    if (response.statusCode == 404) return EnrollmentResult::NotFound;
+    if (response.statusCode == 409) return EnrollmentResult::AlreadyEnrolled;
+    if (response.statusCode >= 500) return EnrollmentResult::ServerError;
+    if (response.statusCode != 201) return EnrollmentResult::ServerError;
+
+    JsonDocument responseDocument;
+    if (deserializeJson(responseDocument, response.body)) return EnrollmentResult::ServerError;
+
+    const char* credential = responseDocument["deviceCredential"] | nullptr;
+    if (!credential || !DeviceCredentialStorage::isValid(String(credential)))
     {
-        JsonDocument document;
-        if (deserializeJson(document, response.body)) return RegistrationResult::ServerError;
-
-        const char* credential = document["deviceCredential"] | nullptr;
-        if (!credential || !DeviceCredentialStorage::isValid(String(credential)))
-        {
-            return RegistrationResult::ServerError;
-        }
-
-        if (!_deviceCredentialStorage.save(String(credential)))
-        {
-            return RegistrationResult::ServerError;
-        }
-
-        return response.statusCode == 201 ? RegistrationResult::Registered : RegistrationResult::Enrolled;
+        return EnrollmentResult::ServerError;
     }
 
-    if (response.statusCode == 409) return RegistrationResult::AlreadyRegistered;
-    return RegistrationResult::ServerError;
+    if (!_deviceCredentialStorage.save(String(credential)))
+    {
+        return EnrollmentResult::ServerError;
+    }
+
+    return EnrollmentResult::Enrolled;
+}
+
+bool ApiClient::hasDeviceCredential() const
+{
+    String credential;
+    return _deviceCredentialStorage.load(credential);
 }
