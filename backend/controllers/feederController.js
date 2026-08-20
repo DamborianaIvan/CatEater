@@ -1,5 +1,4 @@
 const Feeder = require("../models/Feeder");
-const crypto = require("crypto");
 const {
   generateDeviceCredential,
   hashDeviceCredential
@@ -46,7 +45,7 @@ const getFeederConfiguration = async (req, res) => {
   }
 };
 
-// Registrar comedero. La API Key global se utiliza únicamente como bootstrap.
+// Registrar/enrolar comedero. La API Key global se utiliza únicamente como bootstrap.
 const registerFeeder = async (req, res) => {
   const apiKey = req.headers['x-api-key'];
   if (apiKey !== process.env.NODEMCU_API_KEY) return res.status(401).json({ error: 'No autorizado - API Key inválida' });
@@ -55,7 +54,21 @@ const registerFeeder = async (req, res) => {
 
   try {
     const existingFeeder = await Feeder.findOne({ feederId: feederInfo.feederId }).select("+deviceCredentialHash");
-    if (existingFeeder) return res.status(409).json({ error: 'Ya existe un dispositivo con ese feederId' });
+
+    if (existingFeeder) {
+      if (existingFeeder.deviceCredentialHash) {
+        return res.status(409).json({ error: 'Ya existe un dispositivo con ese feederId' });
+      }
+
+      const deviceCredential = generateDeviceCredential();
+      existingFeeder.deviceCredentialHash = hashDeviceCredential(deviceCredential);
+      await existingFeeder.save();
+
+      return res.status(200).json({
+        message: 'Dispositivo enrolado correctamente',
+        deviceCredential
+      });
+    }
 
     const deviceCredential = generateDeviceCredential();
     const newFeeder = new Feeder({
@@ -67,7 +80,7 @@ const registerFeeder = async (req, res) => {
 
     return res.status(201).json({ message: 'Comedero guardado correctamente', deviceCredential });
   } catch (error) {
-    console.error('Error al guardar comedero:', error);
+    console.error('Error al registrar/enrolar comedero:', error);
     return res.status(500).json({ error: 'Hubo un error con el servidor' });
   }
 };
@@ -110,7 +123,6 @@ const getGlobalFeederById = async (req, res) => {
   } catch (error) { return res.status(500).json({ message: "Error al obtener comedero", error: error.message }); }
 };
 
-// Enrollment separado para dispositivos registrados antes de la introducción de deviceCredential.
 const enrollDevice = async (req, res) => {
   const apiKey = req.headers["x-api-key"];
   const { feederId } = req.body || {};
@@ -130,13 +142,4 @@ const enrollDevice = async (req, res) => {
   }
 };
 
-module.exports = {
-  validateConfiguration,
-  getFeederConfiguration,
-  registerFeeder,
-  enrollDevice,
-  getAllFeeders,
-  getMyFeeders,
-  getFeederById,
-  getGlobalFeederById
-};
+module.exports = { validateConfiguration, getFeederConfiguration, registerFeeder, enrollDevice, getAllFeeders, getMyFeeders, getFeederById, getGlobalFeederById };
