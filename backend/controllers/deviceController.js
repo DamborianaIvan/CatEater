@@ -53,6 +53,37 @@ const enrollDevice = async (req, res) => {
   }
 };
 
+const heartbeatDevice = async (req, res) => {
+  try {
+    const feeder = await Feeder.findOneAndUpdate(
+      { feederId: req.device.feederId },
+      {
+        $set: {
+          lastConection: Date.now()
+        }
+      },
+      { new: true }
+    );
+
+    if (!feeder) {
+      return res.status(404).json({
+        error: "Feeder no encontrado"
+      });
+    }
+
+    return res.status(200).json({
+      message: "Heartbeat recibido"
+    });
+  } catch (error) {
+    console.error("Error al procesar heartbeat del dispositivo:", error);
+
+    return res.status(500).json({
+      error: "Error interno del servidor"
+    });
+  }
+};
+
 module.exports = {
-  enrollDevice
+  enrollDevice,
+  heartbeatDevice
 };
