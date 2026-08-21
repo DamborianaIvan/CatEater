@@ -45,8 +45,14 @@ bool ApiClient::getFeederInfo(FeederInfo& feederInfo)
     if (!canAttemptRequest())
         return false;
     String endpoint = String("/feeders/global/") + _deviceInfo.getFeederId();
+    String deviceCredential;
+    if (!_deviceCredentialStorage.load(deviceCredential))
+    {
+        Serial.println("[ApiClient] No se pudo cargar deviceCredential para feeder global.");
+        return false;
+    }
     HttpHeaders headers;
-    headers.emplace_back("x-api-key", API_KEY);
+    headers.emplace_back("x-device-credential", deviceCredential);
     HttpResponse response = _httpClient.get(buildUrl(endpoint), headers);
     updateBackendAvailability(response);
     if (!response.success || response.statusCode != 200)

@@ -286,11 +286,8 @@ const getFeederById = async (req, res) => {
   
 // Obtener feeder por feederId (desde NodeMCU)
 const getGlobalFeederById = async (req, res) => {
-  const apiKey = req.headers['x-api-key'];
   const feederId = req.params.feederId;
 
-  if (!apiKey) return res.status(401).json({ message: "Falta la API Key" });
-  if (apiKey !== process.env.NODEMCU_API_KEY) return res.status(403).json({ message: "API Key inválida" });
   if (!feederId || feederId.trim() === "") return res.status(400).json({ message: "El campo 'feederId' no puede estar vacío" });
 
   try {

@@ -169,7 +169,7 @@ router.post("/feeders/enroll", feederController.enrollDevice);
  *                   message: "No se pudo modificar estado del motor"
  *                   error: "Mensaje de error del servidor"
  */
-router.get('/feeders/global/:feederId', feederController.getGlobalFeederById);
+router.get('/feeders/global/:feederId', authenticateDevice, feederController.getGlobalFeederById);
 
 // Obtener todos los comederos (solo para admin o debugging si lo necesitás)
 /**
@@ -571,8 +571,6 @@ router.post('/feeder/start', verifyToken,feederController.startMotor);
  */
 router.post('/feeder/complete', authenticateDevice, feederController.completeMotorCommand);
 
-//Frenar motor desde NODEMCU
-//router.post('/feeder/end', verifyToken, feederController.stopMotorFromNodemcu);
 
 //Editar comedero
 /**
