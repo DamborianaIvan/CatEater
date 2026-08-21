@@ -80,15 +80,8 @@ const validateConfiguration = (configuration) => {
 };
 
 //get configuracion dle feeder
-const getFeederConfiguration = async (req, res) => {
-  const apiKey = req.headers["x-api-key"];
+const getRemoteConfiguration = async (req, res) => {
   const { feederId } = req.params;
-
-  if (apiKey !== process.env.NODEMCU_API_KEY) {
-    return res.status(401).json({
-      error: "No autorizado - API Key inválida"
-    });
-  }
 
   if (!feederId || feederId.trim() === "") {
     return res.status(400).json({
@@ -1156,7 +1149,7 @@ module.exports = {
   getFeederHistory,
   syncFeedingHistory,
   heartbeat,
-  getFeederConfiguration,
+  getRemoteConfiguration,
   updateFeederConfiguration,
   enrollDevice,
 };

@@ -94,8 +94,16 @@ bool ApiClient::getRemoteConfiguration(Configuration& configuration, uint32_t& r
     if (!canAttemptRequest())
         return false;
     String endpoint = String("/feeders/config/") + _deviceInfo.getFeederId();
+    String deviceCredential;
+
+    if (!_deviceCredentialStorage.load(deviceCredential))
+    {
+        Serial.println("[ApiClient] No se pudo cargar deviceCredential para remote configuration.");
+        return false;
+    }
+
     HttpHeaders headers;
-    headers.emplace_back("x-api-key", API_KEY);
+    headers.emplace_back("x-device-credential", deviceCredential);
     HttpResponse response = _httpClient.get(buildUrl(endpoint), headers, BACKGROUND_TIMEOUT_MS);
     updateBackendAvailability(response);
     if (!response.success || response.statusCode != 200)
