@@ -135,8 +135,14 @@ bool ApiClient::completeMotorCommand(const String& commandId)
 {
     if (!canAttemptRequest())
         return false;
+    String deviceCredential;
+    if (!_deviceCredentialStorage.load(deviceCredential))
+    {
+        Serial.println("[ApiClient] No se pudo cargar deviceCredential para completar comando.");
+        return false;
+    }
     HttpHeaders headers;
-    headers.emplace_back("x-api-key", API_KEY);
+    headers.emplace_back("x-device-credential", deviceCredential);
     headers.emplace_back("Content-Type", "application/json");
     JsonDocument document;
     document["feederId"] = _deviceInfo.getFeederId();
