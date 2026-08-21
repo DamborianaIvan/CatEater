@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const verifyToken = require("../middlewares/authMiddleware");
+const authenticateDeviceBootstrap = require("../middlewares/deviceBootstrapMiddleware");
 const deviceProvisioningController = require("../controllers/deviceProvisioningController");
 
 /**
@@ -15,5 +16,6 @@ router.post(
   verifyToken,
   deviceProvisioningController.createDeviceProvisioning
 );
+
 
 module.exports = router;
