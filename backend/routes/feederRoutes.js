@@ -707,7 +707,7 @@ router.post('/feeder/edit', verifyToken, feederController.editFeeder);
  *               message: "Error al obtener comedero"
  *               error: "Detalle del error"
  */
-router.get('/feeders/motor-state/:feederId', feederController.getMotorStatusNodemcu);
+router.get('/feeders/motor-state/:feederId', authenticateDevice, feederController.getMotorStatusNodemcu);
 
 //Obtener estado motor
 /**

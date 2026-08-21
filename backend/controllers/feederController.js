@@ -836,13 +836,7 @@ const editFeeder = async (req,res)=> {
 
 //Get motor status pero solo para NODEMCU
 const getMotorStatusNodemcu = async (req, res) =>{
-  const apiKey = req.headers['x-api-key'];
-  const { feederId } = req.params;
-
-  if (!apiKey) return res.status(401).json({ message: "Falta la API Key" });
-  if (apiKey !== process.env.NODEMCU_API_KEY) return res.status(403).json({ message: "API Key inválida" });
-  // Obtener un comedero por feederId y userId
-
+const feederId = req.device.feederId;
   // Validar que feederId exista y no esté vacío
   if (!feederId || feederId.trim() === "") {
     return res.status(400).json({ message: "El parámetro feederId es obligatorio y no puede estar vacío." });
