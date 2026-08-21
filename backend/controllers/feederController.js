@@ -135,44 +135,49 @@ const getRemoteConfiguration = async (req, res) => {
 
 // Registrar comedero (desde NodeMCU)
 const registerFeeder = async (req, res) => {
-const apiKey = req.headers['x-api-key'];
+  const feederId = req.deviceProvisioning.feederId;
+  const { name } = req.body;
 
-  if (apiKey !== process.env.NODEMCU_API_KEY) {
-    return res.status(401).json({ error: 'No autorizado - API Key inválida' });
-  }
-
-  const feederInfo = req.body;
-  console.log("[REGISTER] feederId:", feederInfo.feederId);
+  console.log("[REGISTER] feederId:", feederId);
   console.log("[REGISTER] MongoDB:", Feeder.db.name);
-  if (!feederInfo || Object.keys(feederInfo).length === 0) {
-    return res.status(400).json({ error: 'Datos faltantes' });
+
+  if (!feederId) {
+    return res.status(400).json({
+      error: "Datos de provisioning faltantes"
+    });
   }
 
   try {
-    const existedFeeder = await Feeder.findOne({
-  feederId: feederInfo.feederId
-});
+    const existingFeeder = await Feeder.findOne({ feederId });
 
-console.log(
-  "[REGISTER] feeder encontrado:",
-  existedFeeder?.feederId
-);
-    const existingFeeder = await Feeder.findOne({ feederId: feederInfo.feederId });
+    console.log(
+      "[REGISTER] feeder encontrado:",
+      existingFeeder?.feederId
+    );
+
     if (existingFeeder) {
-      return res.status(409).json({ error: 'Ya existe un dispositivo con ese feederId' });
+      return res.status(409).json({
+        error: "Ya existe un dispositivo con ese feederId"
+      });
     }
 
     const newFeeder = new Feeder({
-        feederId: feederInfo.feederId,
-        feederName: feederInfo.feederName
+      feederId,
+      feederName: name || "CatFeeder"
     });
 
     await newFeeder.save();
 
-    return res.status(201).json({ message: 'Comedero guardado correctamente' });
+    return res.status(201).json({
+      message: "Comedero guardado correctamente"
+    });
+
   } catch (error) {
-    console.error('Error al guardar comedero:', error);
-    return res.status(500).json({ error: 'Hubo un error con el servidor' });
+    console.error("Error al guardar comedero:", error);
+
+    return res.status(500).json({
+      error: "Hubo un error con el servidor"
+    });
   }
 };
 

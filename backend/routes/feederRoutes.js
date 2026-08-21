@@ -3,6 +3,7 @@ const router = express.Router();
 const feederController = require('../controllers/feederController');
 const verifyToken = require('../middlewares/authMiddleware'); // Middleware para proteger rutas (JWT)
 const authenticateDevice = require('../middlewares/deviceAuthMiddleware');
+const authenticateDeviceBootstrap = require("../middlewares/deviceBootstrapMiddleware");
 /**
  * @swagger
  * tags:
@@ -85,7 +86,7 @@ const authenticateDevice = require('../middlewares/deviceAuthMiddleware');
  *             example:
  *               error: "Hubo un error con el servidor"
  */
-router.post('/feeders/register', feederController.registerFeeder);
+router.post('/feeders/register', authenticateDeviceBootstrap, feederController.registerFeeder);
 
 //Enrolar comedero para obtener credentials
 router.post("/feeders/enroll", feederController.enrollDevice);
