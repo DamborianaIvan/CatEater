@@ -687,14 +687,6 @@ const completeMotorCommand = async (req, res) => {
 
 //agregar historial guardado en la little.fs
 const syncFeedingHistory = async (req, res) => {
-  const apiKey = req.headers["x-api-key"];
-
-  if (apiKey !== process.env.NODEMCU_API_KEY) {
-    return res.status(401).json({
-      error: "No autorizado - API Key inválida"
-    });
-  }
-
   const {
     eventId,
     feederId,

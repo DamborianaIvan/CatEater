@@ -199,8 +199,17 @@ bool ApiClient::syncFeedingEvent(const FeedingEvent& event)
 {
     if (!canAttemptRequest())
         return false;
+    String deviceCredential;
+
+    if (!_deviceCredentialStorage.load(deviceCredential))
+    {
+        Serial.println(
+            "[ApiClient] No se pudo cargar deviceCredential para sincronizar historial.");
+        return false;
+    }
+
     HttpHeaders headers;
-    headers.emplace_back("x-api-key", API_KEY);
+    headers.emplace_back("x-device-credential", deviceCredential);
     headers.emplace_back("Content-Type", "application/json");
     String source;
     switch (event.source)
