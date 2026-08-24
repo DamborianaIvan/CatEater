@@ -1,7 +1,7 @@
 #include <Arduino.h>
 
-#if __has_include("config/FactoryBootstrap.local.h")
-#include "config/FactoryBootstrap.local.h"
+#if __has_include("config/FactoryDeviceCredential.local.h")
+#include "config/FactoryDeviceCredential.local.h"
 #endif
 
 #include "hardware/Motor.h"
@@ -25,7 +25,6 @@
 #include "services/SyncService.h"
 #include "services/OtaService.h"
 #include "storage/DeviceCredentialStorage.h"
-#include "storage/BootstrapCredentialStorage.h"
 
 Motor motor;
 FeedingHistoryService feedingHistoryService;
@@ -40,9 +39,7 @@ WifiCredentialsStorage wifiCredentialsStorage;
 DeviceInfo deviceInfo(wifi);
 BackendConnectionService backendConnectionService;
 DeviceCredentialStorage deviceCredentialStorage;
-BootstrapCredentialStorage bootstrapCredentialStorage;
-ApiClient apiClient(httpClient, deviceInfo, backendConnectionService, deviceCredentialStorage,
-                    bootstrapCredentialStorage);
+ApiClient apiClient(httpClient, deviceInfo, backendConnectionService, deviceCredentialStorage);
 RemoteCommandStorage remoteCommandStorage;
 OtaService otaService(motor);
 WebServer webServer(motor, wifi, feedingService, scheduler, configuration, storage, otaService,
@@ -57,59 +54,29 @@ ConfigurationSyncService configurationSyncService(apiClient, storage, configurat
 RemoteStateService remoteStateService(apiClient, feedingService, wifi, remoteCommandStorage,
                                       configurationSyncService);
 
-void handleEnrollmentResult(EnrollmentResult enrollmentResult)
+void provisionFactoryDeviceCredential()
 {
-    switch (enrollmentResult)
-    {
-        case EnrollmentResult::Enrolled:
-            Serial.println("[ApiClient] Dispositivo enrolado correctamente.");
-            break;
-
-        case EnrollmentResult::AlreadyEnrolled:
-            Serial.println("[ApiClient] Dispositivo ya esta enrolado.");
-            break;
-
-        case EnrollmentResult::Unauthorized:
-            Serial.println("[ApiClient] Error de autenticacion durante enrollment.");
-            break;
-
-        case EnrollmentResult::NotFound:
-            Serial.println("[ApiClient] Feeder no encontrado durante enrollment.");
-            break;
-
-        case EnrollmentResult::ServerError:
-            Serial.println("[ApiClient] Error del servidor durante enrollment.");
-            break;
-
-        case EnrollmentResult::ConnectionError:
-            Serial.println("[ApiClient] Error de conexion durante enrollment.");
-            break;
-    }
-}
-
-void provisionFactoryBootstrapCredential()
-{
-#ifdef CATFEEDER_FACTORY_BOOTSTRAP
-    if (apiClient.hasDeviceCredential() || apiClient.hasBootstrapCredential())
+#ifdef CATFEEDER_FACTORY_DEVICE_CREDENTIAL
+    if (apiClient.hasDeviceCredential())
     {
         return;
     }
 
-    const String bootstrapCredential = CATFEEDER_FACTORY_BOOTSTRAP;
+    const String deviceCredential = CATFEEDER_FACTORY_DEVICE_CREDENTIAL;
 
-    if (!BootstrapCredentialStorage::isValid(bootstrapCredential))
+    if (!DeviceCredentialStorage::isValid(deviceCredential))
     {
-        Serial.println("[Bootstrap] Factory bootstrap invalido.");
+        Serial.println("[Factory] Device credential invalida.");
         return;
     }
 
-    if (bootstrapCredentialStorage.save(bootstrapCredential))
+    if (deviceCredentialStorage.save(deviceCredential))
     {
-        Serial.println("[Bootstrap] Factory bootstrap almacenado correctamente.");
+        Serial.println("[Factory] Device credential almacenada correctamente.");
     }
     else
     {
-        Serial.println("[Bootstrap] No se pudo almacenar el factory bootstrap.");
+        Serial.println("[Factory] No se pudo almacenar la device credential.");
     }
 #endif
 }
@@ -118,51 +85,14 @@ void handleWifiConnected()
 {
     deviceInfo.printBootInfo();
 
-    if (apiClient.hasDeviceCredential())
+    if (!apiClient.hasDeviceCredential())
     {
-        Serial.println("[ApiClient] Device credential disponible. Iniciando operacion normal.");
-        return;
-    }
-
-    if (!apiClient.hasBootstrapCredential())
-    {
-        Serial.println("[ApiClient] No hay device credential ni bootstrap credential disponible.");
+        Serial.println("[ApiClient] No hay device credential disponible.");
         Serial.println("[ApiClient] El dispositivo requiere provisioning de fabrica.");
         return;
     }
 
-    Serial.println("[ApiClient] Device credential ausente. Iniciando provisioning del dispositivo.");
-
-    RegistrationResult registrationResult = apiClient.registerDevice();
-
-    switch (registrationResult)
-    {
-        case RegistrationResult::Registered:
-            Serial.println("[ApiClient] Dispositivo registrado. Iniciando enrollment.");
-            handleEnrollmentResult(apiClient.enrollDevice());
-            break;
-
-        case RegistrationResult::AlreadyRegistered:
-            Serial.println("[ApiClient] Dispositivo ya registrado. Iniciando enrollment.");
-            handleEnrollmentResult(apiClient.enrollDevice());
-            break;
-
-        case RegistrationResult::Unauthorized:
-            Serial.println("[ApiClient] Bootstrap rechazado durante registro.");
-            break;
-
-        case RegistrationResult::InvalidData:
-            Serial.println("[ApiClient] Datos de registro invalidos.");
-            break;
-
-        case RegistrationResult::ServerError:
-            Serial.println("[ApiClient] Error del servidor durante registro.");
-            break;
-
-        case RegistrationResult::ConnectionError:
-            Serial.println("[ApiClient] Error de conexion durante registro.");
-            break;
-    }
+    Serial.println("[ApiClient] Device credential disponible. Iniciando operacion normal.");
 }
 
 bool hasWifiJustConnected()
@@ -181,14 +111,13 @@ void setup()
     motor.begin();
     storage.begin();
     deviceCredentialStorage.begin();
-    bootstrapCredentialStorage.begin();
     timeService.begin();
     backendConnectionService.begin();
 
     configuration = storage.loadConfiguration(Configuration{});
     motor.setStepsPerFeed(configuration.stepsPerFeed);
 
-    provisionFactoryBootstrapCredential();
+    provisionFactoryDeviceCredential();
 
     buttonService.begin();
     scheduler.begin();
