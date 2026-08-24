@@ -20,6 +20,7 @@
 #include "services/SyncService.h"
 #include "services/OtaService.h"
 #include "storage/DeviceCredentialStorage.h"
+#include "storage/BootstrapCredentialStorage.h"
 
 Motor motor;
 FeedingHistoryService feedingHistoryService;
@@ -34,7 +35,9 @@ WifiCredentialsStorage wifiCredentialsStorage;
 DeviceInfo deviceInfo(wifi);
 BackendConnectionService backendConnectionService;
 DeviceCredentialStorage deviceCredentialStorage;
-ApiClient apiClient(httpClient, deviceInfo, backendConnectionService, deviceCredentialStorage);
+BootstrapCredentialStorage bootstrapCredentialStorage;
+ApiClient apiClient(httpClient, deviceInfo, backendConnectionService, deviceCredentialStorage,
+                    bootstrapCredentialStorage);
 RemoteCommandStorage remoteCommandStorage;
 OtaService otaService(motor);
 WebServer webServer(motor, wifi, feedingService, scheduler, configuration, storage, otaService,
@@ -59,47 +62,33 @@ void handleWifiConnected()
     {
         case RegistrationResult::Registered:
         {
-            // El feeder acaba de ser creado en backend. La credential local
-            // puede pertenecer a una identidad anterior, por lo que siempre
-            // se debe realizar un nuevo enrollment.
             Serial.println("[ApiClient] Dispositivo registrado. Iniciando enrollment.");
-
             EnrollmentResult enrollmentResult = apiClient.enrollDevice();
-
             switch (enrollmentResult)
             {
                 case EnrollmentResult::Enrolled:
                     Serial.println("[ApiClient] Dispositivo enrolado correctamente.");
                     break;
-
                 case EnrollmentResult::AlreadyEnrolled:
                     Serial.println("[ApiClient] Dispositivo ya está enrolado.");
                     break;
-
                 case EnrollmentResult::Unauthorized:
                     Serial.println("[ApiClient] Error de autenticacion durante enrollment.");
                     break;
-
                 case EnrollmentResult::NotFound:
                     Serial.println("[ApiClient] Feeder no encontrado durante enrollment.");
                     break;
-
                 case EnrollmentResult::ServerError:
                     Serial.println("[ApiClient] Error del servidor durante enrollment.");
                     break;
-
                 case EnrollmentResult::ConnectionError:
                     Serial.println("[ApiClient] Error de conexion durante enrollment.");
                     break;
             }
             break;
         }
-
         case RegistrationResult::AlreadyRegistered:
         {
-            // El feeder ya existe. En este caso se conserva la credential
-            // local si está disponible; si no, se intenta recuperar mediante
-            // enrollment.
             if (apiClient.hasDeviceCredential())
             {
                 Serial.println("[ApiClient] Dispositivo ya registrado y credencial disponible.");
@@ -107,52 +96,39 @@ void handleWifiConnected()
             }
 
             Serial.println("[ApiClient] Dispositivo registrado sin credencial local. Iniciando enrollment.");
-
             EnrollmentResult enrollmentResult = apiClient.enrollDevice();
-
             switch (enrollmentResult)
             {
                 case EnrollmentResult::Enrolled:
                     Serial.println("[ApiClient] Dispositivo enrolado correctamente.");
                     break;
-
                 case EnrollmentResult::AlreadyEnrolled:
-                    Serial.println(
-                        "[ApiClient] Dispositivo ya está enrolado, pero la credencial local no "
-                        "está disponible.");
+                    Serial.println("[ApiClient] Dispositivo ya está enrolado, pero la credencial local no está disponible.");
                     break;
-
                 case EnrollmentResult::Unauthorized:
                     Serial.println("[ApiClient] Error de autenticacion durante enrollment.");
                     break;
-
                 case EnrollmentResult::NotFound:
                     Serial.println("[ApiClient] Feeder no encontrado durante enrollment.");
                     break;
-
                 case EnrollmentResult::ServerError:
                     Serial.println("[ApiClient] Error del servidor durante enrollment.");
                     break;
-
                 case EnrollmentResult::ConnectionError:
                     Serial.println("[ApiClient] Error de conexion durante enrollment.");
                     break;
             }
             break;
         }
-
         case RegistrationResult::Unauthorized:
             Serial.println("[ApiClient] Error de autenticacion durante registro.");
             break;
-
         case RegistrationResult::InvalidData:
             Serial.println("[ApiClient] Datos de registro invalidos.");
             break;
-
         case RegistrationResult::ServerError:
             Serial.println("[ApiClient] Error del servidor durante registro.");
             break;
-
         case RegistrationResult::ConnectionError:
             Serial.println("[ApiClient] Error de conexion durante registro.");
             break;
@@ -163,8 +139,8 @@ bool hasWifiJustConnected()
 {
     static ConnectionState previousState = ConnectionState::Disconnected;
     ConnectionState currentState = wifi.getConnectionState();
-    bool connected =
-        currentState == ConnectionState::Connected && previousState != ConnectionState::Connected;
+    bool connected = currentState == ConnectionState::Connected &&
+                     previousState != ConnectionState::Connected;
     previousState = currentState;
     return connected;
 }
@@ -175,6 +151,7 @@ void setup()
     motor.begin();
     storage.begin();
     deviceCredentialStorage.begin();
+    bootstrapCredentialStorage.begin();
     timeService.begin();
     backendConnectionService.begin();
 
@@ -218,7 +195,6 @@ void loop()
     scheduler.update();
     webServer.update();
 
-    // No ejecutar tareas de red bloqueantes mientras el motor alimenta.
     if (!motor.isFeeding())
     {
         remoteStateService.update();
