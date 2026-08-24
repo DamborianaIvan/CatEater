@@ -82,9 +82,38 @@ void handleEnrollmentResult(EnrollmentResult enrollmentResult)
     }
 }
 
+void provisionBootstrapCredentialForDevelopment()
+{
+#ifdef CATFEEDER_BOOTSTRAP_CREDENTIAL
+    if (apiClient.hasDeviceCredential() || apiClient.hasBootstrapCredential())
+    {
+        return;
+    }
+
+    const String bootstrapCredential = CATFEEDER_BOOTSTRAP_CREDENTIAL;
+
+    if (!BootstrapCredentialStorage::isValid(bootstrapCredential))
+    {
+        Serial.println("[Bootstrap] Credencial local invalida.");
+        return;
+    }
+
+    if (bootstrapCredentialStorage.save(bootstrapCredential))
+    {
+        Serial.println("[Bootstrap] Credencial de desarrollo almacenada correctamente.");
+    }
+    else
+    {
+        Serial.println("[Bootstrap] No se pudo almacenar la credencial de desarrollo.");
+    }
+#endif
+}
+
 void handleWifiConnected()
 {
     deviceInfo.printBootInfo();
+
+    provisionBootstrapCredentialForDevelopment();
 
     if (apiClient.hasDeviceCredential())
     {
