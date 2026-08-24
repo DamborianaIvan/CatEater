@@ -4,11 +4,13 @@
 
 ApiClient::ApiClient(HttpClient& httpClient, const DeviceInfo& deviceInfo,
                      BackendConnectionService& backendConnectionService,
-                     DeviceCredentialStorage& deviceCredentialStorage)
+                     DeviceCredentialStorage& deviceCredentialStorage,
+                     BootstrapCredentialStorage& bootstrapCredentialStorage)
     : _httpClient(httpClient),
       _deviceInfo(deviceInfo),
       _backendConnectionService(backendConnectionService),
-      _deviceCredentialStorage(deviceCredentialStorage)
+      _deviceCredentialStorage(deviceCredentialStorage),
+      _bootstrapCredentialStorage(bootstrapCredentialStorage)
 {
 }
 
@@ -20,7 +22,6 @@ String ApiClient::buildUrl(const String& endpoint) const
 String ApiClient::buildRegistrationBody() const
 {
     JsonDocument document;
-    document["feederId"] = _deviceInfo.getFeederId();
     document["feederName"] = _deviceInfo.getModel();
     String json;
     serializeJson(document, json);
@@ -249,9 +250,16 @@ RegistrationResult ApiClient::registerDevice()
     if (!canAttemptRequest())
         return RegistrationResult::ConnectionError;
 
+    String bootstrapCredential;
+    if (!_bootstrapCredentialStorage.load(bootstrapCredential))
+    {
+        Serial.println("[ApiClient] No se pudo cargar bootstrap credential para registro.");
+        return RegistrationResult::Unauthorized;
+    }
+
     const String body = buildRegistrationBody();
     HttpHeaders headers;
-    headers.emplace_back("x-api-key", API_KEY);
+    headers.emplace_back("x-device-bootstrap", bootstrapCredential);
     headers.emplace_back("Content-Type", CONTENT_TYPE);
 
     HttpResponse response = _httpClient.post(buildUrl(REGISTER_ENDPOINT), body, headers);
@@ -259,7 +267,7 @@ RegistrationResult ApiClient::registerDevice()
 
     if (!response.success)
         return RegistrationResult::ConnectionError;
-    if (response.statusCode == 401)
+    if (response.statusCode == 401 || response.statusCode == 403)
         return RegistrationResult::Unauthorized;
     if (response.statusCode == 400)
         return RegistrationResult::InvalidData;
@@ -278,19 +286,20 @@ EnrollmentResult ApiClient::enrollDevice()
     if (!canAttemptRequest())
         return EnrollmentResult::ConnectionError;
 
-    JsonDocument document;
-    document["feederId"] = _deviceInfo.getFeederId();
-
-    String body;
-    serializeJson(document, body);
+    String bootstrapCredential;
+    if (!_bootstrapCredentialStorage.load(bootstrapCredential))
+    {
+        Serial.println("[ApiClient] No se pudo cargar bootstrap credential para enrollment.");
+        return EnrollmentResult::Unauthorized;
+    }
 
     HttpHeaders headers;
-    headers.emplace_back("x-api-key", API_KEY);
+    headers.emplace_back("x-device-bootstrap", bootstrapCredential);
     headers.emplace_back("Content-Type", CONTENT_TYPE);
 
     Serial.println("[ApiClient] Iniciando enrollment del dispositivo...");
 
-    HttpResponse response = _httpClient.post(buildUrl(ENROLL_ENDPOINT), body, headers);
+    HttpResponse response = _httpClient.post(buildUrl(ENROLL_ENDPOINT), "{}", headers);
     updateBackendAvailability(response);
 
     Serial.print("[ApiClient] Enrollment HTTP status: ");
@@ -302,7 +311,7 @@ EnrollmentResult ApiClient::enrollDevice()
         return EnrollmentResult::ConnectionError;
     }
 
-    if (response.statusCode == 401)
+    if (response.statusCode == 401 || response.statusCode == 403)
         return EnrollmentResult::Unauthorized;
     if (response.statusCode == 404)
         return EnrollmentResult::NotFound;
@@ -350,6 +359,14 @@ EnrollmentResult ApiClient::enrollDevice()
     }
 
     Serial.println("[ApiClient] deviceCredential almacenada correctamente.");
+
+    if (!_bootstrapCredentialStorage.clear())
+    {
+        Serial.println("[ApiClient] Advertencia: no se pudo eliminar bootstrap credential.");
+        return EnrollmentResult::ServerError;
+    }
+
+    Serial.println("[ApiClient] Bootstrap credential eliminada correctamente.");
     return EnrollmentResult::Enrolled;
 }
 
@@ -357,4 +374,10 @@ bool ApiClient::hasDeviceCredential() const
 {
     String credential;
     return _deviceCredentialStorage.load(credential);
+}
+
+bool ApiClient::hasBootstrapCredential() const
+{
+    String credential;
+    return _bootstrapCredentialStorage.load(credential);
 }
