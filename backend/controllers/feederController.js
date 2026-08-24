@@ -183,24 +183,30 @@ const registerFeeder = async (req, res) => {
 
 //enrolar feeder leugo del register
 const enrollDevice = async (req, res) => {
-  const apiKey = req.headers["x-api-key"];
-  const { feederId } = req.body || {};
+  const provisioning = req.deviceProvisioning;
+  const feederId = provisioning.feederId;
+  console.log("[ENROLL] provisioning:", provisioning);
+console.log("[ENROLL] feederId:", feederId);
+console.log("[ENROLL] MongoDB:", Feeder.db.name);
 
-  if (apiKey !== process.env.NODEMCU_API_KEY) {
-    return res.status(401).json({
-      error: "No autorizado - API Key inválida"
-    });
-  }
-
-  if (!feederId || typeof feederId !== "string" || feederId.trim() === "") {
+  if (
+    !feederId ||
+    typeof feederId !== "string" ||
+    feederId.trim() === ""
+  ) {
     return res.status(400).json({
       error: "feederId es requerido"
     });
   }
 
   try {
-    const feeder = await Feeder.findOne({ feederId }).select("+deviceCredentialHash");
+    const feeder = await Feeder.findOne({ feederId })
+      .select("+deviceCredentialHash");
 
+    console.log(
+      "[ENROLL] feeder encontrado:",
+      feeder?.feederId
+    );
     if (!feeder) {
       return res.status(404).json({
         error: "Feeder no encontrado"
@@ -214,14 +220,23 @@ const enrollDevice = async (req, res) => {
     }
 
     const deviceCredential = generateDeviceCredential();
-    feeder.deviceCredentialHash = hashDeviceCredential(deviceCredential);
+
+    feeder.deviceCredentialHash =
+      hashDeviceCredential(deviceCredential);
 
     await feeder.save();
+
+    provisioning.bootstrapSecretHash = null;
+    provisioning.status = "ENROLLED";
+    provisioning.enrolledAt = new Date();
+
+    await provisioning.save();
 
     return res.status(201).json({
       message: "Dispositivo enrolado correctamente",
       deviceCredential
     });
+
   } catch (error) {
     console.error("Error al enrolar dispositivo:", error);
 

@@ -89,7 +89,7 @@ const authenticateDeviceBootstrap = require("../middlewares/deviceBootstrapMiddl
 router.post('/feeders/register', authenticateDeviceBootstrap, feederController.registerFeeder);
 
 //Enrolar comedero para obtener credentials
-router.post("/feeders/enroll", feederController.enrollDevice);
+router.post("/feeders/enroll", authenticateDeviceBootstrap, feederController.enrollDevice);
 
 // Obtener comederos desde NodeMCU por feederId
 /**
