@@ -58,13 +58,11 @@ void handleWifiConnected()
     switch (registrationResult)
     {
         case RegistrationResult::Registered:
-        case RegistrationResult::AlreadyRegistered:
         {
-            if (apiClient.hasDeviceCredential())
-            {
-                Serial.println("[ApiClient] Dispositivo registrado y credencial disponible.");
-                break;
-            }
+            // El feeder acaba de ser creado en backend. La credential local
+            // puede pertenecer a una identidad anterior, por lo que siempre
+            // se debe realizar un nuevo enrollment.
+            Serial.println("[ApiClient] Dispositivo registrado. Iniciando enrollment.");
 
             EnrollmentResult enrollmentResult = apiClient.enrollDevice();
 
@@ -75,7 +73,53 @@ void handleWifiConnected()
                     break;
 
                 case EnrollmentResult::AlreadyEnrolled:
-                    Serial.println("[ApiClient] Dispositivo ya está enrolado, pero la credencial local no está disponible.");
+                    Serial.println("[ApiClient] Dispositivo ya está enrolado.");
+                    break;
+
+                case EnrollmentResult::Unauthorized:
+                    Serial.println("[ApiClient] Error de autenticacion durante enrollment.");
+                    break;
+
+                case EnrollmentResult::NotFound:
+                    Serial.println("[ApiClient] Feeder no encontrado durante enrollment.");
+                    break;
+
+                case EnrollmentResult::ServerError:
+                    Serial.println("[ApiClient] Error del servidor durante enrollment.");
+                    break;
+
+                case EnrollmentResult::ConnectionError:
+                    Serial.println("[ApiClient] Error de conexion durante enrollment.");
+                    break;
+            }
+            break;
+        }
+
+        case RegistrationResult::AlreadyRegistered:
+        {
+            // El feeder ya existe. En este caso se conserva la credential
+            // local si está disponible; si no, se intenta recuperar mediante
+            // enrollment.
+            if (apiClient.hasDeviceCredential())
+            {
+                Serial.println("[ApiClient] Dispositivo ya registrado y credencial disponible.");
+                break;
+            }
+
+            Serial.println("[ApiClient] Dispositivo registrado sin credencial local. Iniciando enrollment.");
+
+            EnrollmentResult enrollmentResult = apiClient.enrollDevice();
+
+            switch (enrollmentResult)
+            {
+                case EnrollmentResult::Enrolled:
+                    Serial.println("[ApiClient] Dispositivo enrolado correctamente.");
+                    break;
+
+                case EnrollmentResult::AlreadyEnrolled:
+                    Serial.println(
+                        "[ApiClient] Dispositivo ya está enrolado, pero la credencial local no "
+                        "está disponible.");
                     break;
 
                 case EnrollmentResult::Unauthorized:
@@ -119,8 +163,8 @@ bool hasWifiJustConnected()
 {
     static ConnectionState previousState = ConnectionState::Disconnected;
     ConnectionState currentState = wifi.getConnectionState();
-    bool connected = currentState == ConnectionState::Connected &&
-                     previousState != ConnectionState::Connected;
+    bool connected =
+        currentState == ConnectionState::Connected && previousState != ConnectionState::Connected;
     previousState = currentState;
     return connected;
 }

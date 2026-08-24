@@ -1,6 +1,10 @@
 const Feeder = require("../models/Feeder");
 const crypto = require("crypto");
 require('../jobs/motorStatusJob');
+const {
+  generateDeviceCredential,
+  hashDeviceCredential
+} = require("../utils/deviceCredential");
 
 const MAX_SCHEDULES = 5;
 const MIN_STEPS_PER_FEED = 1;
@@ -76,15 +80,8 @@ const validateConfiguration = (configuration) => {
 };
 
 //get configuracion dle feeder
-const getFeederConfiguration = async (req, res) => {
-  const apiKey = req.headers["x-api-key"];
+const getRemoteConfiguration = async (req, res) => {
   const { feederId } = req.params;
-
-  if (apiKey !== process.env.NODEMCU_API_KEY) {
-    return res.status(401).json({
-      error: "No autorizado - API Key inválida"
-    });
-  }
 
   if (!feederId || feederId.trim() === "") {
     return res.status(400).json({
@@ -138,33 +135,114 @@ const getFeederConfiguration = async (req, res) => {
 
 // Registrar comedero (desde NodeMCU)
 const registerFeeder = async (req, res) => {
-  const apiKey = req.headers['x-api-key'];
-  if (apiKey !== process.env.NODEMCU_API_KEY) {
-    return res.status(401).json({ error: 'No autorizado - API Key inválida' });
-  }
+  const feederId = req.deviceProvisioning.feederId;
+  const { name } = req.body;
 
-  const feederInfo = req.body;
-  if (!feederInfo || Object.keys(feederInfo).length === 0) {
-    return res.status(400).json({ error: 'Datos faltantes' });
+  console.log("[REGISTER] feederId:", feederId);
+  console.log("[REGISTER] MongoDB:", Feeder.db.name);
+
+  if (!feederId) {
+    return res.status(400).json({
+      error: "Datos de provisioning faltantes"
+    });
   }
 
   try {
-    const existingFeeder = await Feeder.findOne({ feederId: feederInfo.feederId });
+    const existingFeeder = await Feeder.findOne({ feederId });
+
+    console.log(
+      "[REGISTER] feeder encontrado:",
+      existingFeeder?.feederId
+    );
+
     if (existingFeeder) {
-      return res.status(409).json({ error: 'Ya existe un dispositivo con ese feederId' });
+      return res.status(409).json({
+        error: "Ya existe un dispositivo con ese feederId"
+      });
     }
 
     const newFeeder = new Feeder({
-        feederId: feederInfo.feederId,
-        feederName: feederInfo.feederName
+      feederId,
+      feederName: name || "CatFeeder"
     });
 
     await newFeeder.save();
 
-    return res.status(201).json({ message: 'Comedero guardado correctamente' });
+    return res.status(201).json({
+      message: "Comedero guardado correctamente"
+    });
+
   } catch (error) {
-    console.error('Error al guardar comedero:', error);
-    return res.status(500).json({ error: 'Hubo un error con el servidor' });
+    console.error("Error al guardar comedero:", error);
+
+    return res.status(500).json({
+      error: "Hubo un error con el servidor"
+    });
+  }
+};
+
+//enrolar feeder leugo del register
+const enrollDevice = async (req, res) => {
+  const provisioning = req.deviceProvisioning;
+  const feederId = provisioning.feederId;
+  console.log("[ENROLL] provisioning:", provisioning);
+console.log("[ENROLL] feederId:", feederId);
+console.log("[ENROLL] MongoDB:", Feeder.db.name);
+
+  if (
+    !feederId ||
+    typeof feederId !== "string" ||
+    feederId.trim() === ""
+  ) {
+    return res.status(400).json({
+      error: "feederId es requerido"
+    });
+  }
+
+  try {
+    const feeder = await Feeder.findOne({ feederId })
+      .select("+deviceCredentialHash");
+
+    console.log(
+      "[ENROLL] feeder encontrado:",
+      feeder?.feederId
+    );
+    if (!feeder) {
+      return res.status(404).json({
+        error: "Feeder no encontrado"
+      });
+    }
+
+    if (feeder.deviceCredentialHash) {
+      return res.status(409).json({
+        error: "El dispositivo ya está enrolado"
+      });
+    }
+
+    const deviceCredential = generateDeviceCredential();
+
+    feeder.deviceCredentialHash =
+      hashDeviceCredential(deviceCredential);
+
+    await feeder.save();
+
+    provisioning.bootstrapSecretHash = null;
+    provisioning.status = "ENROLLED";
+    provisioning.enrolledAt = new Date();
+
+    await provisioning.save();
+
+    return res.status(201).json({
+      message: "Dispositivo enrolado correctamente",
+      deviceCredential
+    });
+
+  } catch (error) {
+    console.error("Error al enrolar dispositivo:", error);
+
+    return res.status(500).json({
+      error: "Error interno del servidor"
+    });
   }
 };
 
@@ -228,11 +306,8 @@ const getFeederById = async (req, res) => {
   
 // Obtener feeder por feederId (desde NodeMCU)
 const getGlobalFeederById = async (req, res) => {
-  const apiKey = req.headers['x-api-key'];
   const feederId = req.params.feederId;
 
-  if (!apiKey) return res.status(401).json({ message: "Falta la API Key" });
-  if (apiKey !== process.env.NODEMCU_API_KEY) return res.status(403).json({ message: "API Key inválida" });
   if (!feederId || feederId.trim() === "") return res.status(400).json({ message: "El campo 'feederId' no puede estar vacío" });
 
   try {
@@ -562,14 +637,7 @@ const stopMotorFromNodemcu = async (req, res)=>{
 
 //completar ejecucion de motor
 const completeMotorCommand = async (req, res) => {
-  const apiKey = req.headers["x-api-key"];
-
-  if (apiKey !== process.env.NODEMCU_API_KEY) {
-    return res.status(401).json({
-      error: "No autorizado - API Key inválida"
-    });
-  }
-
+ 
   const { feederId, commandId } = req.body;
 
   if (!feederId || !commandId) {
@@ -636,14 +704,6 @@ const completeMotorCommand = async (req, res) => {
 
 //agregar historial guardado en la little.fs
 const syncFeedingHistory = async (req, res) => {
-  const apiKey = req.headers["x-api-key"];
-
-  if (apiKey !== process.env.NODEMCU_API_KEY) {
-    return res.status(401).json({
-      error: "No autorizado - API Key inválida"
-    });
-  }
-
   const {
     eventId,
     feederId,
@@ -771,13 +831,7 @@ const editFeeder = async (req,res)=> {
 
 //Get motor status pero solo para NODEMCU
 const getMotorStatusNodemcu = async (req, res) =>{
-  const apiKey = req.headers['x-api-key'];
-  const { feederId } = req.params;
-
-  if (!apiKey) return res.status(401).json({ message: "Falta la API Key" });
-  if (apiKey !== process.env.NODEMCU_API_KEY) return res.status(403).json({ message: "API Key inválida" });
-  // Obtener un comedero por feederId y userId
-
+const feederId = req.device.feederId;
   // Validar que feederId exista y no esté vacío
   if (!feederId || feederId.trim() === "") {
     return res.status(400).json({ message: "El parámetro feederId es obligatorio y no puede estar vacío." });
@@ -1046,50 +1100,36 @@ const clearFeederHistory = async (req, res) => {
 };
 
 const heartbeat = async (req, res) => {
-  const apiKey = req.headers["x-api-key"];
-
-  if (apiKey !== process.env.NODEMCU_API_KEY) {
-    return res.status(401).json({
-      error: "No autorizado - API Key inválida"
-    });
-  }
-
-  const { feederId } = req.body;
-
-  if (!feederId) {
-    return res.status(400).json({
-      error: "feederId es requerido"
-    });
-  }
-
   try {
-    const feeder = await Feeder.findOneAndUpdate(
-      { feederId },
-      {
-        $set: {
-          lastConection: Date.now()
-        }
-      },
-      { new: true }
-    );
-
-    if (!feeder) {
-      return res.status(404).json({
-        error: "Feeder no encontrado"
+      const feeder = await Feeder.findOneAndUpdate(
+        { feederId: req.device.feederId },
+        {
+          $set: {
+            lastConection: Date.now()
+          }
+        },
+        { new: true }
+      );
+  
+      if (!feeder) {
+        return res.status(404).json({
+          error: "Feeder no encontrado"
+        });
+      }
+  
+      return res.status(200).json({
+        message: "Heartbeat recibido"
+      });
+    } catch (error) {
+      console.error("Error al procesar heartbeat del dispositivo:", error);
+  
+      return res.status(500).json({
+        error: "Error interno del servidor"
       });
     }
-
-    return res.status(200).json({
-      message: "Heartbeat recibido"
-    });
-  } catch (error) {
-    console.error("Error al procesar heartbeat:", error);
-
-    return res.status(500).json({
-      error: "Error interno del servidor"
-    });
-  }
 };
+
+
 
 module.exports = {
   registerFeeder,
@@ -1111,6 +1151,8 @@ module.exports = {
   getFeederHistory,
   syncFeedingHistory,
   heartbeat,
-  getFeederConfiguration,
+  getRemoteConfiguration,
   updateFeederConfiguration,
+  enrollDevice,
 };
+

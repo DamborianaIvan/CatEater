@@ -7,7 +7,8 @@ const swaggerUi = require('swagger-ui-express');
 
 const authRoutes = require("./routes/authRoutes");
 const feederRoutes = require("./routes/feederRoutes");
-const deviceRoutes = require("./routes/deviceRoutes");
+const deviceProvisioningRoutes = require("./routes/deviceProvisioningRoutes");
+
 
 const app = express();
 connectDB();
@@ -17,7 +18,7 @@ app.use(express.json());
 
 app.use("/", authRoutes);
 app.use("/", feederRoutes);
-app.use("/", deviceRoutes);
+app.use("/", deviceProvisioningRoutes);
 
 
 // Opciones de configuración

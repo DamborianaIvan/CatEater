@@ -42,15 +42,24 @@ void ApiClient::updateBackendAvailability(const HttpResponse& response)
 
 bool ApiClient::getFeederInfo(FeederInfo& feederInfo)
 {
-    if (!canAttemptRequest()) return false;
+    if (!canAttemptRequest())
+        return false;
     String endpoint = String("/feeders/global/") + _deviceInfo.getFeederId();
+    String deviceCredential;
+    if (!_deviceCredentialStorage.load(deviceCredential))
+    {
+        Serial.println("[ApiClient] No se pudo cargar deviceCredential para feeder global.");
+        return false;
+    }
     HttpHeaders headers;
-    headers.emplace_back("x-api-key", API_KEY);
+    headers.emplace_back("x-device-credential", deviceCredential);
     HttpResponse response = _httpClient.get(buildUrl(endpoint), headers);
     updateBackendAvailability(response);
-    if (!response.success || response.statusCode != 200) return false;
+    if (!response.success || response.statusCode != 200)
+        return false;
     JsonDocument document;
-    if (deserializeJson(document, response.body)) return false;
+    if (deserializeJson(document, response.body))
+        return false;
     feederInfo.feederQuantity = document["feederQuantity"] | 0;
     feederInfo.feederName = document["feederName"] | "";
     feederInfo.feederLogo = document["feederLogo"] | "";
@@ -58,17 +67,27 @@ bool ApiClient::getFeederInfo(FeederInfo& feederInfo)
     return true;
 }
 
-bool ApiClient::getMotorState(bool& motorState, int& portions, String& commandId, uint32_t& configRevision)
+bool ApiClient::getMotorState(bool& motorState, int& portions, String& commandId,
+                              uint32_t& configRevision)
 {
-    if (!canAttemptRequest()) return false;
+    if (!canAttemptRequest())
+        return false;
     String endpoint = String("/feeders/motor-state/") + _deviceInfo.getFeederId();
+    String deviceCredential;
+    if (!_deviceCredentialStorage.load(deviceCredential))
+    {
+        Serial.println("[ApiClient] No se pudo cargar deviceCredential para motor state.");
+        return false;
+    }
     HttpHeaders headers;
-    headers.emplace_back("x-api-key", API_KEY);
+    headers.emplace_back("x-device-credential", deviceCredential);
     HttpResponse response = _httpClient.get(buildUrl(endpoint), headers, MOTOR_STATE_TIMEOUT_MS);
     updateBackendAvailability(response);
-    if (!response.success || response.statusCode != 200) return false;
+    if (!response.success || response.statusCode != 200)
+        return false;
     JsonDocument document;
-    if (deserializeJson(document, response.body)) return false;
+    if (deserializeJson(document, response.body))
+        return false;
     motorState = document["motorState"] | false;
     portions = document["portions"] | 1;
     commandId = document["commandId"] | "";
@@ -78,24 +97,37 @@ bool ApiClient::getMotorState(bool& motorState, int& portions, String& commandId
 
 bool ApiClient::getRemoteConfiguration(Configuration& configuration, uint32_t& revision)
 {
-    if (!canAttemptRequest()) return false;
+    if (!canAttemptRequest())
+        return false;
     String endpoint = String("/feeders/config/") + _deviceInfo.getFeederId();
+    String deviceCredential;
+
+    if (!_deviceCredentialStorage.load(deviceCredential))
+    {
+        Serial.println("[ApiClient] No se pudo cargar deviceCredential para remote configuration.");
+        return false;
+    }
+
     HttpHeaders headers;
-    headers.emplace_back("x-api-key", API_KEY);
+    headers.emplace_back("x-device-credential", deviceCredential);
     HttpResponse response = _httpClient.get(buildUrl(endpoint), headers, BACKGROUND_TIMEOUT_MS);
     updateBackendAvailability(response);
-    if (!response.success || response.statusCode != 200) return false;
+    if (!response.success || response.statusCode != 200)
+        return false;
     JsonDocument document;
-    if (deserializeJson(document, response.body) || !document["revision"].is<uint32_t>()) return false;
+    if (deserializeJson(document, response.body) || !document["revision"].is<uint32_t>())
+        return false;
     revision = document["revision"].as<uint32_t>();
     Configuration newConfiguration;
     newConfiguration.stepsPerFeed = document["stepsPerFeed"];
     JsonArray schedules = document["schedules"].as<JsonArray>();
-    if (schedules.isNull()) return false;
+    if (schedules.isNull())
+        return false;
     for (uint8_t i = 0; i < MAX_SCHEDULES; ++i)
     {
         JsonObject schedule = schedules[i].as<JsonObject>();
-        if (schedule.isNull()) return false;
+        if (schedule.isNull())
+            return false;
         newConfiguration.schedules[i].hour = schedule["hour"] | 0;
         newConfiguration.schedules[i].minute = schedule["minute"] | 0;
         newConfiguration.schedules[i].portions = schedule["portions"] | 1;
@@ -107,44 +139,96 @@ bool ApiClient::getRemoteConfiguration(Configuration& configuration, uint32_t& r
 
 bool ApiClient::completeMotorCommand(const String& commandId)
 {
-    if (!canAttemptRequest()) return false;
+    if (!canAttemptRequest())
+        return false;
+    String deviceCredential;
+    if (!_deviceCredentialStorage.load(deviceCredential))
+    {
+        Serial.println("[ApiClient] No se pudo cargar deviceCredential para completar comando.");
+        return false;
+    }
     HttpHeaders headers;
-    headers.emplace_back("x-api-key", API_KEY);
+    headers.emplace_back("x-device-credential", deviceCredential);
     headers.emplace_back("Content-Type", "application/json");
     JsonDocument document;
     document["feederId"] = _deviceInfo.getFeederId();
     document["commandId"] = commandId;
     String body;
     serializeJson(document, body);
-    HttpResponse response = _httpClient.post(buildUrl("/feeder/complete"), body, headers, BACKGROUND_TIMEOUT_MS);
+    HttpResponse response =
+        _httpClient.post(buildUrl("/feeder/complete"), body, headers, BACKGROUND_TIMEOUT_MS);
     updateBackendAvailability(response);
     return response.success && response.statusCode >= 200 && response.statusCode < 300;
 }
 
 bool ApiClient::sendHeartbeat()
 {
-    if (!canAttemptRequest()) return false;
+    if (!canAttemptRequest())
+        return false;
+
+    String deviceCredential;
+    if (!_deviceCredentialStorage.load(deviceCredential))
+    {
+        Serial.println("[ApiClient] No se pudo cargar deviceCredential para heartbeat.");
+        return false;
+    }
+
     HttpHeaders headers;
-    headers.emplace_back("x-api-key", API_KEY);
-    headers.emplace_back("Content-Type", "application/json");
-    const String body = "{\"feederId\":\"" + _deviceInfo.getFeederId() + "\"}";
-    HttpResponse response = _httpClient.post(buildUrl("/feeders/heartbeat"), body, headers, BACKGROUND_TIMEOUT_MS);
+    headers.emplace_back("x-device-credential", deviceCredential);
+    headers.emplace_back("Content-Type", CONTENT_TYPE);
+
+    JsonDocument document;
+    document["feederId"] = _deviceInfo.getFeederId();
+
+    String body;
+    serializeJson(document, body);
+
+    HttpResponse response =
+        _httpClient.post(buildUrl(DEVICE_HEARTBEAT_ENDPOINT), body, headers, BACKGROUND_TIMEOUT_MS);
+
     updateBackendAvailability(response);
-    return response.success && response.statusCode >= 200 && response.statusCode < 300;
+
+    if (response.success && response.statusCode >= 200 && response.statusCode < 300)
+        return true;
+
+    if (response.statusCode == 401)
+        Serial.println("[ApiClient] Heartbeat rechazado: deviceCredential invalida o ausente.");
+    else if (response.statusCode == 404)
+        Serial.println("[ApiClient] Heartbeat rechazado: feeder no encontrado.");
+    else
+        Serial.println("[ApiClient] Error al enviar heartbeat autenticado.");
+
+    return false;
 }
 
 bool ApiClient::syncFeedingEvent(const FeedingEvent& event)
 {
-    if (!canAttemptRequest()) return false;
+    if (!canAttemptRequest())
+        return false;
+    String deviceCredential;
+
+    if (!_deviceCredentialStorage.load(deviceCredential))
+    {
+        Serial.println(
+            "[ApiClient] No se pudo cargar deviceCredential para sincronizar historial.");
+        return false;
+    }
+
     HttpHeaders headers;
-    headers.emplace_back("x-api-key", API_KEY);
+    headers.emplace_back("x-device-credential", deviceCredential);
     headers.emplace_back("Content-Type", "application/json");
     String source;
     switch (event.source)
     {
-        case FeedingSource::Physical: source = "physical"; break;
-        case FeedingSource::Scheduled: source = "scheduled"; break;
-        case FeedingSource::Remote: source = "remote"; break;
+        case FeedingSource::Physical:
+            source = "physical";
+            break;
+        case FeedingSource::Scheduled:
+            source = "scheduled";
+            break;
+        case FeedingSource::Remote:
+            source = "remote";
+            break;
     }
     JsonDocument document;
     document["eventId"] = event.eventId;
@@ -154,14 +238,16 @@ bool ApiClient::syncFeedingEvent(const FeedingEvent& event)
     document["source"] = source;
     String body;
     serializeJson(document, body);
-    HttpResponse response = _httpClient.post(buildUrl("/feeders/history"), body, headers, EVENT_SYNC_TIMEOUT_MS);
+    HttpResponse response =
+        _httpClient.post(buildUrl("/feeders/history"), body, headers, EVENT_SYNC_TIMEOUT_MS);
     updateBackendAvailability(response);
     return response.success && response.statusCode >= 200 && response.statusCode < 300;
 }
 
 RegistrationResult ApiClient::registerDevice()
 {
-    if (!canAttemptRequest()) return RegistrationResult::ConnectionError;
+    if (!canAttemptRequest())
+        return RegistrationResult::ConnectionError;
 
     const String body = buildRegistrationBody();
     HttpHeaders headers;
@@ -171,19 +257,26 @@ RegistrationResult ApiClient::registerDevice()
     HttpResponse response = _httpClient.post(buildUrl(REGISTER_ENDPOINT), body, headers);
     updateBackendAvailability(response);
 
-    if (!response.success) return RegistrationResult::ConnectionError;
-    if (response.statusCode == 401) return RegistrationResult::Unauthorized;
-    if (response.statusCode == 400) return RegistrationResult::InvalidData;
-    if (response.statusCode >= 500) return RegistrationResult::ServerError;
-    if (response.statusCode == 201) return RegistrationResult::Registered;
-    if (response.statusCode == 409) return RegistrationResult::AlreadyRegistered;
+    if (!response.success)
+        return RegistrationResult::ConnectionError;
+    if (response.statusCode == 401)
+        return RegistrationResult::Unauthorized;
+    if (response.statusCode == 400)
+        return RegistrationResult::InvalidData;
+    if (response.statusCode >= 500)
+        return RegistrationResult::ServerError;
+    if (response.statusCode == 201)
+        return RegistrationResult::Registered;
+    if (response.statusCode == 409)
+        return RegistrationResult::AlreadyRegistered;
 
     return RegistrationResult::ServerError;
 }
 
 EnrollmentResult ApiClient::enrollDevice()
 {
-    if (!canAttemptRequest()) return EnrollmentResult::ConnectionError;
+    if (!canAttemptRequest())
+        return EnrollmentResult::ConnectionError;
 
     JsonDocument document;
     document["feederId"] = _deviceInfo.getFeederId();
@@ -209,10 +302,14 @@ EnrollmentResult ApiClient::enrollDevice()
         return EnrollmentResult::ConnectionError;
     }
 
-    if (response.statusCode == 401) return EnrollmentResult::Unauthorized;
-    if (response.statusCode == 404) return EnrollmentResult::NotFound;
-    if (response.statusCode == 409) return EnrollmentResult::AlreadyEnrolled;
-    if (response.statusCode >= 500) return EnrollmentResult::ServerError;
+    if (response.statusCode == 401)
+        return EnrollmentResult::Unauthorized;
+    if (response.statusCode == 404)
+        return EnrollmentResult::NotFound;
+    if (response.statusCode == 409)
+        return EnrollmentResult::AlreadyEnrolled;
+    if (response.statusCode >= 500)
+        return EnrollmentResult::ServerError;
     if (response.statusCode != 200 && response.statusCode != 201)
     {
         Serial.println("[ApiClient] Codigo HTTP inesperado durante enrollment.");

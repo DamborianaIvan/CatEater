@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const feederController = require('../controllers/feederController');
 const verifyToken = require('../middlewares/authMiddleware'); // Middleware para proteger rutas (JWT)
+const authenticateDevice = require('../middlewares/deviceAuthMiddleware');
+const authenticateDeviceBootstrap = require("../middlewares/deviceBootstrapMiddleware");
 /**
  * @swagger
  * tags:
@@ -84,7 +86,10 @@ const verifyToken = require('../middlewares/authMiddleware'); // Middleware para
  *             example:
  *               error: "Hubo un error con el servidor"
  */
-router.post('/feeders/register', feederController.registerFeeder);
+router.post('/feeders/register', authenticateDeviceBootstrap, feederController.registerFeeder);
+
+//Enrolar comedero para obtener credentials
+router.post("/feeders/enroll", authenticateDeviceBootstrap, feederController.enrollDevice);
 
 // Obtener comederos desde NodeMCU por feederId
 /**
@@ -165,7 +170,7 @@ router.post('/feeders/register', feederController.registerFeeder);
  *                   message: "No se pudo modificar estado del motor"
  *                   error: "Mensaje de error del servidor"
  */
-router.get('/feeders/global/:feederId', feederController.getGlobalFeederById);
+router.get('/feeders/global/:feederId', authenticateDevice, feederController.getGlobalFeederById);
 
 // Obtener todos los comederos (solo para admin o debugging si lo necesitás)
 /**
@@ -565,10 +570,8 @@ router.post('/feeder/start', verifyToken,feederController.startMotor);
  *               message: "Error interno al desasignar el feeder"
  *               error: "Detalle del error"
  */
-router.post('/feeder/complete',feederController.completeMotorCommand);
+router.post('/feeder/complete', authenticateDevice, feederController.completeMotorCommand);
 
-//Frenar motor desde NODEMCU
-//router.post('/feeder/end', verifyToken, feederController.stopMotorFromNodemcu);
 
 //Editar comedero
 /**
@@ -703,7 +706,7 @@ router.post('/feeder/edit', verifyToken, feederController.editFeeder);
  *               message: "Error al obtener comedero"
  *               error: "Detalle del error"
  */
-router.get('/feeders/motor-state/:feederId', feederController.getMotorStatusNodemcu);
+router.get('/feeders/motor-state/:feederId', authenticateDevice, feederController.getMotorStatusNodemcu);
 
 //Obtener estado motor
 /**
@@ -867,13 +870,12 @@ router.delete('/feeder/:feederId', verifyToken, feederController.deleteFeeder);
 router.get('/feeder/:feederId/historial', verifyToken, feederController.getFeederHistory);
 
 //Agrega historial que se mantiene en la persinstencia en modo offline
-router.post('/feeders/history',feederController.syncFeedingHistory);
+router.post('/feeders/history',authenticateDevice,feederController.syncFeedingHistory);
 
 //Comunica el estado del dispositivo hacia el backend
-router.post("/feeders/heartbeat", feederController.heartbeat);
+router.post("/feeders/heartbeat", authenticateDevice,feederController.heartbeat);
 
-//Obtener configuracion defeeder
-router.get('/feeders/config/:feederId',feederController.getFeederConfiguration);
+router.get('/feeders/config/:feederId',authenticateDevice,feederController.getRemoteConfiguration);
 
 //Edita configuracion defeeder
 router.put('/feeders/:feederId/config',verifyToken,feederController.updateFeederConfiguration);

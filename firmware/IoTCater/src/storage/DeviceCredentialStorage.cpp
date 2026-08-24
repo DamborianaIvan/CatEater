@@ -17,8 +17,8 @@ bool DeviceCredentialStorage::save(const String& credential)
     stored.version = VERSION;
     stored.length = static_cast<uint16_t>(credential.length());
     credential.toCharArray(stored.credential, sizeof(stored.credential));
-    stored.crc = calculateCrc(reinterpret_cast<const uint8_t*>(&stored),
-                              offsetof(StoredCredential, crc));
+    stored.crc =
+        calculateCrc(reinterpret_cast<const uint8_t*>(&stored), offsetof(StoredCredential, crc));
 
     EEPROM.put(CREDENTIAL_ADDRESS, stored);
 
@@ -37,8 +37,8 @@ bool DeviceCredentialStorage::load(String& credential) const
         return false;
     }
 
-    const uint32_t expectedCrc = calculateCrc(reinterpret_cast<const uint8_t*>(&stored),
-                                              offsetof(StoredCredential, crc));
+    const uint32_t expectedCrc =
+        calculateCrc(reinterpret_cast<const uint8_t*>(&stored), offsetof(StoredCredential, crc));
 
     if (stored.crc != expectedCrc)
     {
