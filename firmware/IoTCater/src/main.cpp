@@ -82,38 +82,54 @@ void handleEnrollmentResult(EnrollmentResult enrollmentResult)
     }
 }
 
-void provisionBootstrapCredentialForDevelopment()
+void handleSerialProvisioning()
 {
-#ifdef CATFEEDER_BOOTSTRAP_CREDENTIAL
-    if (apiClient.hasDeviceCredential() || apiClient.hasBootstrapCredential())
+    if (!Serial.available())
     {
         return;
     }
 
-    const String bootstrapCredential = CATFEEDER_BOOTSTRAP_CREDENTIAL;
+    String command = Serial.readStringUntil('\n');
+    command.trim();
+
+    if (!command.startsWith("PROVISION "))
+    {
+        return;
+    }
+
+    if (apiClient.hasDeviceCredential())
+    {
+        Serial.println("[Bootstrap] Dispositivo ya enrolado. No se puede reemplazar la credencial.");
+        return;
+    }
+
+    if (apiClient.hasBootstrapCredential())
+    {
+        Serial.println("[Bootstrap] Ya existe una bootstrap credential almacenada.");
+        return;
+    }
+
+    const String bootstrapCredential = command.substring(10);
 
     if (!BootstrapCredentialStorage::isValid(bootstrapCredential))
     {
-        Serial.println("[Bootstrap] Credencial local invalida.");
+        Serial.println("[Bootstrap] Bootstrap credential invalida.");
         return;
     }
 
     if (bootstrapCredentialStorage.save(bootstrapCredential))
     {
-        Serial.println("[Bootstrap] Credencial de desarrollo almacenada correctamente.");
+        Serial.println("[Bootstrap] Bootstrap credential almacenada correctamente.");
     }
     else
     {
-        Serial.println("[Bootstrap] No se pudo almacenar la credencial de desarrollo.");
+        Serial.println("[Bootstrap] No se pudo almacenar la bootstrap credential.");
     }
-#endif
 }
 
 void handleWifiConnected()
 {
     deviceInfo.printBootInfo();
-
-    provisionBootstrapCredentialForDevelopment();
 
     if (apiClient.hasDeviceCredential())
     {
@@ -124,7 +140,7 @@ void handleWifiConnected()
     if (!apiClient.hasBootstrapCredential())
     {
         Serial.println("[ApiClient] No hay device credential ni bootstrap credential disponible.");
-        Serial.println("[ApiClient] El dispositivo requiere provisioning para autenticarse.");
+        Serial.println("[ApiClient] Use: PROVISION <bootstrap credential>");
         return;
     }
 
@@ -202,6 +218,8 @@ void setup()
 
 void loop()
 {
+    handleSerialProvisioning();
+
     motor.update();
     buttonService.update();
     provisioningService.update();
