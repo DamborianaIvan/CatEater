@@ -82,49 +82,31 @@ void handleEnrollmentResult(EnrollmentResult enrollmentResult)
     }
 }
 
-void handleSerialProvisioning()
+void provisionFactoryBootstrapCredential()
 {
-    if (!Serial.available())
+#ifdef CATFEEDER_FACTORY_BOOTSTRAP
+    if (apiClient.hasDeviceCredential() || apiClient.hasBootstrapCredential())
     {
         return;
     }
 
-    String command = Serial.readStringUntil('\n');
-    command.trim();
-
-    if (!command.startsWith("PROVISION "))
-    {
-        return;
-    }
-
-    if (apiClient.hasDeviceCredential())
-    {
-        Serial.println("[Bootstrap] Dispositivo ya enrolado. No se puede reemplazar la credencial.");
-        return;
-    }
-
-    if (apiClient.hasBootstrapCredential())
-    {
-        Serial.println("[Bootstrap] Ya existe una bootstrap credential almacenada.");
-        return;
-    }
-
-    const String bootstrapCredential = command.substring(10);
+    const String bootstrapCredential = CATFEEDER_FACTORY_BOOTSTRAP;
 
     if (!BootstrapCredentialStorage::isValid(bootstrapCredential))
     {
-        Serial.println("[Bootstrap] Bootstrap credential invalida.");
+        Serial.println("[Bootstrap] Factory bootstrap invalido.");
         return;
     }
 
     if (bootstrapCredentialStorage.save(bootstrapCredential))
     {
-        Serial.println("[Bootstrap] Bootstrap credential almacenada correctamente.");
+        Serial.println("[Bootstrap] Factory bootstrap almacenado correctamente.");
     }
     else
     {
-        Serial.println("[Bootstrap] No se pudo almacenar la bootstrap credential.");
+        Serial.println("[Bootstrap] No se pudo almacenar el factory bootstrap.");
     }
+#endif
 }
 
 void handleWifiConnected()
@@ -140,7 +122,7 @@ void handleWifiConnected()
     if (!apiClient.hasBootstrapCredential())
     {
         Serial.println("[ApiClient] No hay device credential ni bootstrap credential disponible.");
-        Serial.println("[ApiClient] Use: PROVISION <bootstrap credential>");
+        Serial.println("[ApiClient] El dispositivo requiere provisioning de fabrica.");
         return;
     }
 
@@ -201,6 +183,8 @@ void setup()
     configuration = storage.loadConfiguration(Configuration{});
     motor.setStepsPerFeed(configuration.stepsPerFeed);
 
+    provisionFactoryBootstrapCredential();
+
     buttonService.begin();
     scheduler.begin();
     heartbeatService.begin();
@@ -218,8 +202,6 @@ void setup()
 
 void loop()
 {
-    handleSerialProvisioning();
-
     motor.update();
     buttonService.update();
     provisioningService.update();
