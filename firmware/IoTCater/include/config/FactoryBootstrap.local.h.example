@@ -1,0 +1,5 @@
+#pragma once
+
+// Copiar este archivo como FactoryBootstrap.local.h durante la fabricacion.
+// NO incluir credenciales reales en Git.
+#define CATFEEDER_FACTORY_BOOTSTRAP "REEMPLAZAR_CON_BOOTSTRAP"
