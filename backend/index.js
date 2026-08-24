@@ -7,8 +7,7 @@ const swaggerUi = require('swagger-ui-express');
 
 const authRoutes = require("./routes/authRoutes");
 const feederRoutes = require("./routes/feederRoutes");
-const deviceProvisioningRoutes = require("./routes/deviceProvisioningRoutes");
-
+const deviceFactoryRoutes = require("./routes/deviceFactoryRoutes");
 
 const app = express();
 connectDB();
@@ -18,10 +17,8 @@ app.use(express.json());
 
 app.use("/", authRoutes);
 app.use("/", feederRoutes);
-app.use("/", deviceProvisioningRoutes);
+app.use("/", deviceFactoryRoutes);
 
-
-// Opciones de configuración
 const swaggerOptions = {
     swaggerDefinition: {
       openapi: '3.0.0',
@@ -32,15 +29,14 @@ const swaggerOptions = {
       },
       servers: [
         {
-          url: 'http://localhost:5000', 
+          url: 'http://localhost:5000',
         },
       ],
     },
-    apis: ['./routes/*.js'], 
+    apis: ['./routes/*.js'],
   };
-  
+
 const swaggerDocs = swaggerJsDoc(swaggerOptions);
-// Middleware para exponer la doc en /api-docs
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 const PORT = process.env.PORT || 5000;

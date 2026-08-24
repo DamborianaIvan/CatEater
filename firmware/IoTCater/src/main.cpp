@@ -1,4 +1,9 @@
 #include <Arduino.h>
+
+#if __has_include("config/FactoryDeviceCredential.local.h")
+#include "config/FactoryDeviceCredential.local.h"
+#endif
+
 #include "hardware/Motor.h"
 #include "services/WifiService.h"
 #include "web/WebServer.h"
@@ -49,122 +54,53 @@ ConfigurationSyncService configurationSyncService(apiClient, storage, configurat
 RemoteStateService remoteStateService(apiClient, feedingService, wifi, remoteCommandStorage,
                                       configurationSyncService);
 
+void provisionFactoryDeviceCredential()
+{
+#ifdef CATFEEDER_FACTORY_DEVICE_CREDENTIAL
+    if (apiClient.hasDeviceCredential())
+    {
+        return;
+    }
+
+    const String deviceCredential = CATFEEDER_FACTORY_DEVICE_CREDENTIAL;
+
+    if (!DeviceCredentialStorage::isValid(deviceCredential))
+    {
+        Serial.println("[Factory] Device credential invalida.");
+        return;
+    }
+
+    if (deviceCredentialStorage.save(deviceCredential))
+    {
+        Serial.println("[Factory] Device credential almacenada correctamente.");
+    }
+    else
+    {
+        Serial.println("[Factory] No se pudo almacenar la device credential.");
+    }
+#endif
+}
+
 void handleWifiConnected()
 {
     deviceInfo.printBootInfo();
 
-    RegistrationResult registrationResult = apiClient.registerDevice();
-
-    switch (registrationResult)
+    if (!apiClient.hasDeviceCredential())
     {
-        case RegistrationResult::Registered:
-        {
-            // El feeder acaba de ser creado en backend. La credential local
-            // puede pertenecer a una identidad anterior, por lo que siempre
-            // se debe realizar un nuevo enrollment.
-            Serial.println("[ApiClient] Dispositivo registrado. Iniciando enrollment.");
-
-            EnrollmentResult enrollmentResult = apiClient.enrollDevice();
-
-            switch (enrollmentResult)
-            {
-                case EnrollmentResult::Enrolled:
-                    Serial.println("[ApiClient] Dispositivo enrolado correctamente.");
-                    break;
-
-                case EnrollmentResult::AlreadyEnrolled:
-                    Serial.println("[ApiClient] Dispositivo ya está enrolado.");
-                    break;
-
-                case EnrollmentResult::Unauthorized:
-                    Serial.println("[ApiClient] Error de autenticacion durante enrollment.");
-                    break;
-
-                case EnrollmentResult::NotFound:
-                    Serial.println("[ApiClient] Feeder no encontrado durante enrollment.");
-                    break;
-
-                case EnrollmentResult::ServerError:
-                    Serial.println("[ApiClient] Error del servidor durante enrollment.");
-                    break;
-
-                case EnrollmentResult::ConnectionError:
-                    Serial.println("[ApiClient] Error de conexion durante enrollment.");
-                    break;
-            }
-            break;
-        }
-
-        case RegistrationResult::AlreadyRegistered:
-        {
-            // El feeder ya existe. En este caso se conserva la credential
-            // local si está disponible; si no, se intenta recuperar mediante
-            // enrollment.
-            if (apiClient.hasDeviceCredential())
-            {
-                Serial.println("[ApiClient] Dispositivo ya registrado y credencial disponible.");
-                break;
-            }
-
-            Serial.println("[ApiClient] Dispositivo registrado sin credencial local. Iniciando enrollment.");
-
-            EnrollmentResult enrollmentResult = apiClient.enrollDevice();
-
-            switch (enrollmentResult)
-            {
-                case EnrollmentResult::Enrolled:
-                    Serial.println("[ApiClient] Dispositivo enrolado correctamente.");
-                    break;
-
-                case EnrollmentResult::AlreadyEnrolled:
-                    Serial.println(
-                        "[ApiClient] Dispositivo ya está enrolado, pero la credencial local no "
-                        "está disponible.");
-                    break;
-
-                case EnrollmentResult::Unauthorized:
-                    Serial.println("[ApiClient] Error de autenticacion durante enrollment.");
-                    break;
-
-                case EnrollmentResult::NotFound:
-                    Serial.println("[ApiClient] Feeder no encontrado durante enrollment.");
-                    break;
-
-                case EnrollmentResult::ServerError:
-                    Serial.println("[ApiClient] Error del servidor durante enrollment.");
-                    break;
-
-                case EnrollmentResult::ConnectionError:
-                    Serial.println("[ApiClient] Error de conexion durante enrollment.");
-                    break;
-            }
-            break;
-        }
-
-        case RegistrationResult::Unauthorized:
-            Serial.println("[ApiClient] Error de autenticacion durante registro.");
-            break;
-
-        case RegistrationResult::InvalidData:
-            Serial.println("[ApiClient] Datos de registro invalidos.");
-            break;
-
-        case RegistrationResult::ServerError:
-            Serial.println("[ApiClient] Error del servidor durante registro.");
-            break;
-
-        case RegistrationResult::ConnectionError:
-            Serial.println("[ApiClient] Error de conexion durante registro.");
-            break;
+        Serial.println("[ApiClient] No hay device credential disponible.");
+        Serial.println("[ApiClient] El dispositivo requiere provisioning de fabrica.");
+        return;
     }
+
+    Serial.println("[ApiClient] Device credential disponible. Iniciando operacion normal.");
 }
 
 bool hasWifiJustConnected()
 {
     static ConnectionState previousState = ConnectionState::Disconnected;
     ConnectionState currentState = wifi.getConnectionState();
-    bool connected =
-        currentState == ConnectionState::Connected && previousState != ConnectionState::Connected;
+    bool connected = currentState == ConnectionState::Connected &&
+                     previousState != ConnectionState::Connected;
     previousState = currentState;
     return connected;
 }
@@ -180,6 +116,8 @@ void setup()
 
     configuration = storage.loadConfiguration(Configuration{});
     motor.setStepsPerFeed(configuration.stepsPerFeed);
+
+    provisionFactoryDeviceCredential();
 
     buttonService.begin();
     scheduler.begin();
@@ -218,7 +156,6 @@ void loop()
     scheduler.update();
     webServer.update();
 
-    // No ejecutar tareas de red bloqueantes mientras el motor alimenta.
     if (!motor.isFeeding())
     {
         remoteStateService.update();
