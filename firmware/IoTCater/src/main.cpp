@@ -1,4 +1,9 @@
 #include <Arduino.h>
+
+#if __has_include("config/FactoryBootstrap.local.h")
+#include "config/FactoryBootstrap.local.h"
+#endif
+
 #include "hardware/Motor.h"
 #include "services/WifiService.h"
 #include "web/WebServer.h"
