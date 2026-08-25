@@ -4,6 +4,12 @@ const {
   hashDeviceCredential
 } = require("../utils/deviceCredential");
 
+const {
+  generatePairingToken,
+  generatePairingCode,
+  hashPairingCredential
+} = require("../utils/pairingCredential");
+
 const createFactoryDevice = async (req, res) => {
   const { feederId, feederName } = req.body;
 
@@ -29,20 +35,32 @@ const createFactoryDevice = async (req, res) => {
     }
 
     const deviceCredential = generateDeviceCredential();
+    const pairingToken = generatePairingToken();
+    const pairingCode = generatePairingCode();
 
     const feeder = await Feeder.create({
       feederId: normalizedFeederId,
       feederName: normalizedFeederName,
       userId: null,
       feederAsign: false,
-      deviceCredentialHash: hashDeviceCredential(deviceCredential)
+      deviceCredentialHash: hashDeviceCredential(deviceCredential),
+      pairing: {
+        tokenHash: hashPairingCredential(pairingToken),
+        codeHash: hashPairingCredential(pairingCode),
+        usedAt: null
+      }
     });
 
     return res.status(201).json({
       feederId: feeder.feederId,
       feederName: feeder.feederName,
       deviceCredential,
-      qrPayload: feeder.feederId
+      pairingToken,
+      pairingCode,
+      qrPayload: {
+        type: "catfeeder-pairing",
+        token: pairingToken
+      }
     });
   } catch (error) {
     if (error.code === 11000) {
