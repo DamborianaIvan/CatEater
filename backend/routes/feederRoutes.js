@@ -360,7 +360,6 @@ router.post('/feeder/start', verifyToken,feederController.startMotor);
  */
 router.post('/feeder/complete', authenticateDevice, feederController.completeMotorCommand);
 
-
 //Editar comedero
 /**
  * @swagger
