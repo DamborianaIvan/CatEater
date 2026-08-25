@@ -5,55 +5,77 @@ const {
   hashPairingCredential
 } = require("../utils/pairingCredential");
 
-const pairDevice = async ({ userId, pairingToken, pairingCode } = {}) => {
-  if (!userId) {
-    const error = new Error("Usuario requerido.");
-    error.code = "USER_REQUIRED";
-    throw error;
-  }
+const PAIRING_CODE_PATTERN = /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{8}$/;
+const PAIRING_TOKEN_PATTERN = /^[a-f0-9]{64}$/;
 
+const createPairingError = (message, code) => {
+  const error = new Error(message);
+  error.code = code;
+  return error;
+};
+
+const validatePairingCredential = ({ pairingToken, pairingCode }) => {
   if (!pairingToken && !pairingCode) {
-    const error = new Error("Credencial de pairing requerida.");
-    error.code = "PAIRING_CREDENTIAL_REQUIRED";
-    throw error;
+    throw createPairingError("Credencial de pairing requerida.", "PAIRING_CREDENTIAL_REQUIRED");
   }
 
   if (pairingToken && pairingCode) {
-    const error = new Error("Utilice una sola credencial de pairing.");
-    error.code = "MULTIPLE_PAIRING_CREDENTIALS";
-    throw error;
+    throw createPairingError("Utilice una sola credencial de pairing.", "MULTIPLE_PAIRING_CREDENTIALS");
   }
 
-  const credential = pairingToken || pairingCode;
-  const credentialHash = hashPairingCredential(credential);
+  if (pairingToken) {
+    if (typeof pairingToken !== "string" || !PAIRING_TOKEN_PATTERN.test(pairingToken)) {
+      throw createPairingError("Formato de pairing inválido.", "INVALID_PAIRING_FORMAT");
+    }
 
-  const query = pairingToken
-    ? { "pairing.tokenHash": credentialHash }
-    : { "pairing.codeHash": credentialHash };
+    return {
+      type: "token",
+      hash: hashPairingCredential(pairingToken)
+    };
+  }
 
-  const feeder = await Feeder.findOne(query).select("+pairing.tokenHash +pairing.codeHash");
+  const normalizedCode = typeof pairingCode === "string"
+    ? pairingCode.trim().toUpperCase()
+    : "";
+
+  if (!PAIRING_CODE_PATTERN.test(normalizedCode)) {
+    throw createPairingError("Formato de pairing inválido.", "INVALID_PAIRING_FORMAT");
+  }
+
+  return {
+    type: "code",
+    hash: hashPairingCredential(normalizedCode)
+  };
+};
+
+const pairDevice = async ({ userId, pairingToken, pairingCode } = {}) => {
+  if (!userId) {
+    throw createPairingError("Usuario requerido.", "USER_REQUIRED");
+  }
+
+  const credential = validatePairingCredential({ pairingToken, pairingCode });
+
+  const query = credential.type === "token"
+    ? { "pairing.tokenHash": credential.hash }
+    : { "pairing.codeHash": credential.hash };
+
+  const feeder = await Feeder.findOne(query)
+    .select("+pairing.tokenHash +pairing.codeHash");
 
   if (!feeder) {
-    const error = new Error("Credencial de pairing inválida.");
-    error.code = "INVALID_PAIRING_CREDENTIAL";
-    throw error;
+    throw createPairingError("Credencial de pairing inválida.", "INVALID_PAIRING_CREDENTIAL");
   }
 
   if (feeder.isAssigned()) {
-    const error = new Error("El dispositivo ya está asignado.");
-    error.code = "FEEDER_ALREADY_ASSIGNED";
-    throw error;
+    throw createPairingError("El dispositivo ya está asignado.", "FEEDER_ALREADY_ASSIGNED");
   }
 
   if (!feeder.hasActivePairing()) {
-    const error = new Error("La credencial de pairing ya no está activa.");
-    error.code = "PAIRING_NOT_ACTIVE";
-    throw error;
+    throw createPairingError("La credencial de pairing ya no está activa.", "PAIRING_NOT_ACTIVE");
   }
 
   feeder.userId = userId;
   feeder.feederAsign = true;
-
   feeder.consumePairing();
 
   await feeder.save();
@@ -67,36 +89,26 @@ const pairDevice = async ({ userId, pairingToken, pairingCode } = {}) => {
 
 const unpairDevice = async ({ userId, feederId } = {}) => {
   if (!userId) {
-    const error = new Error("Usuario requerido.");
-    error.code = "USER_REQUIRED";
-    throw error;
+    throw createPairingError("Usuario requerido.", "USER_REQUIRED");
   }
 
   if (!feederId || typeof feederId !== "string" || feederId.trim() === "") {
-    const error = new Error("feederId requerido.");
-    error.code = "FEEDER_ID_REQUIRED";
-    throw error;
+    throw createPairingError("feederId requerido.", "FEEDER_ID_REQUIRED");
   }
 
   const feeder = await Feeder.findOne({ feederId: feederId.trim() })
     .select("+pairing.tokenHash +pairing.codeHash");
 
   if (!feeder) {
-    const error = new Error("Comedero no encontrado.");
-    error.code = "FEEDER_NOT_FOUND";
-    throw error;
+    throw createPairingError("Comedero no encontrado.", "FEEDER_NOT_FOUND");
   }
 
   if (!feeder.isAssigned()) {
-    const error = new Error("El dispositivo no está asignado.");
-    error.code = "FEEDER_NOT_ASSIGNED";
-    throw error;
+    throw createPairingError("El dispositivo no está asignado.", "FEEDER_NOT_ASSIGNED");
   }
 
   if (feeder.userId.toString() !== userId.toString()) {
-    const error = new Error("El dispositivo no te pertenece.");
-    error.code = "FEEDER_NOT_OWNER";
-    throw error;
+    throw createPairingError("El dispositivo no te pertenece.", "FEEDER_NOT_OWNER");
   }
 
   const pairingToken = generatePairingToken();
@@ -104,7 +116,6 @@ const unpairDevice = async ({ userId, feederId } = {}) => {
 
   feeder.userId = null;
   feeder.feederAsign = false;
-
   feeder.pairing.tokenHash = hashPairingCredential(pairingToken);
   feeder.pairing.codeHash = hashPairingCredential(pairingCode);
   feeder.pairing.usedAt = null;
@@ -118,6 +129,7 @@ const unpairDevice = async ({ userId, feederId } = {}) => {
     pairingCode
   };
 };
+
 module.exports = {
   pairDevice,
   unpairDevice
