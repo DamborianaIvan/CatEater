@@ -249,70 +249,7 @@ const getGlobalFeederById = async (req, res) => {
   }
 };
 
-//Asignar comedero
-const assignFeeder = async (req, res) => {
-  try {
-    const { feederId, feederName, feederLogo } = req.body;
-    const userId = req.user?._id; // viene del token decodificado por middleware
 
-    // Validaciones básicas de campos
-    if (!feederId || typeof feederId !== "string" || feederId.trim() === "") {
-      return res.status(400).json({ message: "El campo 'feederId' es requerido y debe ser un string válido." });
-    }
-
-    if (!feederName || typeof feederName !== "string" || feederName.trim() === "") {
-      return res.status(400).json({ message: "El campo 'feederName' es requerido y debe ser un string válido." });
-    }
-
-    if (!feederLogo || typeof feederLogo !== "string") {
-      return res.status(400).json({ message: "El campo 'feederLogo' es requerido y debe ser un string." });
-    }
-
-    if (!userId) {
-      return res.status(401).json({ message: "No se pudo obtener el usuario autenticado." });
-    }
-
-    // Buscar el comedero por ID
-    const feeder = await Feeder.findOne({ feederId });
-
-    if (!feeder) {
-      return res.status(404).json({ message: "Comedero no encontrado." });
-    }
-
-    // Validar si ya está asignado a otro usuario
-    if (feeder.userId && feeder.userId.toString() !== userId.toString()) {
-      return res.status(403).json({ message: "Este comedero ya está asignado a otro usuario." });
-    }
-
-    // Validar si ya está asignado a este mismo usuario
-    if (feeder.userId && feeder.userId.toString() === userId.toString()) {
-      return res.status(400).json({ message: "Este comedero ya está asignado a vos." });
-    }
-
-    // Asignar el comedero
-    feeder.userId = userId;
-    feeder.feederName = feederName;
-    feeder.feederLogo = feederLogo;
-    feeder.feederAsign = true;
-    feeder.lastConexion = Date.now();
-
-    await feeder.save();
-
-    res.status(200).json({
-      message: "Comedero asignado correctamente",
-      informacion: {
-        userId,
-        feederName,
-        feederLogo,
-        feederId
-      }
-    });
-
-  } catch (err) {
-    console.error("Error al asignar comedero:", err);
-    res.status(500).json({ message: "Error interno del servidor", error: err.message });
-  }
-};
 
 // Asignar horas programadas al feeder (versión dinámica)
 const addStartHours = async (req, res) => {
@@ -357,58 +294,7 @@ const addStartHours = async (req, res) => {
   }
 };
 
-//Desasignar comedero
-const unassignFeeder = async (req, res) => {
-  try {
-    const {feederId}  = req.body;
-    const userId = req.user._id;
-    
-    if (!userId || userId.trim() === "") {
-      return res.status(400).json({ message: "El campo 'userId' no puede estar vacío" });
-    }
 
-    // Buscar el feeder
-    const existingFeeder = await Feeder.findOne({ feederId });
-
-    if (!existingFeeder) {
-      return res.status(404).json({ message: "Feeder no encontrado" });
-    }
-
-    // Verificar si el feeder ya está desasignado
-    if (!existingFeeder.feederAsign || existingFeeder.userId===null) {
-      return res.status(400).json({ message: "El feeder no esta asignado a ninguna persona" });
-    }
-
-    // Verificar si el feeder le pertenece al usuario que lo quiere desasignar
-    if (existingFeeder.userId.toString() !== userId) {
-      return res.status(403).json({ message: "Este comedero no te pertenece" });
-    }
-
-    // Desasignar el feeder
-    const feeder = await Feeder.findOneAndUpdate(
-      { feederId },
-      {
-        $set: {
-          userId: null,
-          feederName: null,
-          feederLogo:null,
-          feederAsign: false,
-          lastConection: Date.now()
-        }
-      },
-      { new: true }
-    );
-
-    return res.status(200).json({
-      message: "Feeder desasignado con éxito",
-      feeder
-    });
-
-  } catch (err) {
-    console.error("Error al desasignar feeder:", err);
-    res.status(500).json({ message: "Error interno al desasignar el feeder", error: err.message });
-  }
-};
 
 //Encender motor
 const startMotor = async (req, res)=>{
