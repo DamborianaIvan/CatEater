@@ -13,6 +13,22 @@ const FeederSchema = new mongoose.Schema({
     default: null,
     select: false
   },
+  pairing: {
+    tokenHash: {
+      type: String,
+      default: null,
+      select: false
+    },
+    codeHash: {
+      type: String,
+      default: null,
+      select: false
+    },
+    usedAt: {
+      type: Date,
+      default: null
+    }
+  },
   motorInfo: {
     startHours: {
       type: [Date]
