@@ -8,6 +8,7 @@ const swaggerUi = require('swagger-ui-express');
 const authRoutes = require("./routes/authRoutes");
 const feederRoutes = require("./routes/feederRoutes");
 const deviceFactoryRoutes = require("./routes/deviceFactoryRoutes");
+const devicePairingRoutes = require("./routes/devicePairingRoutes");
 
 const app = express();
 connectDB();
@@ -18,6 +19,7 @@ app.use(express.json());
 app.use("/", authRoutes);
 app.use("/", feederRoutes);
 app.use("/", deviceFactoryRoutes);
+app.use("/", devicePairingRoutes);
 
 const swaggerOptions = {
     swaggerDefinition: {
