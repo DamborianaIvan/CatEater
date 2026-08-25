@@ -139,6 +139,10 @@ FeederSchema.methods.isAssigned = function () {
   return this.userId !== null && this.userId !== undefined && this.userId !== "";
 };
 
+FeederSchema.methods.getStatus = function () {
+  return this.isAssigned() ? "assigned" : "unassigned";
+};
+
 FeederSchema.methods.hasActivePairing = function () {
   return Boolean(
     this.pairing?.tokenHash &&
