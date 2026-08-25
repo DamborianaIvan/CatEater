@@ -119,6 +119,44 @@ const FeederSchema = new mongoose.Schema({
   }
 });
 
+FeederSchema.pre("validate", function (next) {
+  const hasTokenHash = Boolean(this.pairing?.tokenHash);
+  const hasCodeHash = Boolean(this.pairing?.codeHash);
+  const hasUsedAt = Boolean(this.pairing?.usedAt);
+
+  if (hasTokenHash !== hasCodeHash) {
+    return next(new Error("Las credenciales de pairing deben existir juntas."));
+  }
+
+  if (hasUsedAt && (hasTokenHash || hasCodeHash)) {
+    return next(new Error("Un pairing consumido no puede conservar credenciales activas."));
+  }
+
+  next();
+});
+
+FeederSchema.methods.isAssigned = function () {
+  return this.userId !== null && this.userId !== undefined && this.userId !== "";
+};
+
+FeederSchema.methods.hasActivePairing = function () {
+  return Boolean(
+    this.pairing?.tokenHash &&
+    this.pairing?.codeHash &&
+    !this.pairing?.usedAt
+  );
+};
+
+FeederSchema.methods.consumePairing = function () {
+  if (!this.hasActivePairing()) {
+    throw new Error("El dispositivo no tiene una credencial de pairing activa.");
+  }
+
+  this.pairing.tokenHash = null;
+  this.pairing.codeHash = null;
+  this.pairing.usedAt = new Date();
+};
+
 // Los eventos de alimentación deben originarse en FeedingService y sincronizarse
 // mediante eventId. Evita que una confirmación de commandId genere un segundo
 // evento anónimo en el historial.
