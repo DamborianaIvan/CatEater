@@ -3,7 +3,6 @@ const router = express.Router();
 const feederController = require('../controllers/feederController');
 const verifyToken = require('../middlewares/authMiddleware'); // Middleware para proteger rutas (JWT)
 const authenticateDevice = require('../middlewares/deviceAuthMiddleware');
-const authenticateDeviceBootstrap = require("../middlewares/deviceBootstrapMiddleware");
 /**
  * @swagger
  * tags:
@@ -17,79 +16,6 @@ const authenticateDeviceBootstrap = require("../middlewares/deviceBootstrapMiddl
  *   name: Feeder
  *   description: Endpoints que trabajan sobre las acciones del feeder.
  */ 
-
-// Registrar comedero (NodeMCU)
-/**
- * @swagger
- * /feeders/register:
- *   post:
- *     summary: Registrar un nuevo comedero desde el NodeMCU
- *     description: Este endpoint permite que el dispositivo NodeMCU registre un nuevo comedero enviando su `feederId` y `name`. Requiere una API Key válida en el header.
- *     tags:
- *       - Feeders
- *     parameters:
- *       - in: header
- *         name: x-api-key
- *         required: true
- *         schema:
- *           type: string
- *         description: API Key para autorización del NodeMCU
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - feederId
- *               - name
- *             properties:
- *               feederId:
- *                 type: string
- *                 example: "8"
- *               name:
- *                 type: string
- *                 example: "Comedero Cocina"
- *     responses:
- *       201:
- *         description: Comedero registrado correctamente
- *         content:
- *           application/json:
- *             example:
- *               message: "Comedero guardado correctamente"
- *
- *       400:
- *         description: Faltan datos obligatorios en el body
- *         content:
- *           application/json:
- *             example:
- *               error: "Datos faltantes"
- *
- *       401:
- *         description: API Key inválida o no enviada
- *         content:
- *           application/json:
- *             example:
- *               error: "No autorizado - API Key inválida"
- *
- *       409:
- *         description: Ya existe un comedero con ese `feederId`
- *         content:
- *           application/json:
- *             example:
- *               error: "Ya existe un dispositivo con ese feederId"
- *
- *       500:
- *         description: Error interno del servidor
- *         content:
- *           application/json:
- *             example:
- *               error: "Hubo un error con el servidor"
- */
-router.post('/feeders/register', authenticateDeviceBootstrap, feederController.registerFeeder);
-
-//Enrolar comedero para obtener credentials
-router.post("/feeders/enroll", authenticateDeviceBootstrap, feederController.enrollDevice);
 
 // Obtener comederos desde NodeMCU por feederId
 /**

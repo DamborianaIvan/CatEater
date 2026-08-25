@@ -1,11 +1,6 @@
 const Feeder = require("../models/Feeder");
 const crypto = require("crypto");
 require('../jobs/motorStatusJob');
-const {
-  generateDeviceCredential,
-  hashDeviceCredential
-} = require("../utils/deviceCredential");
-
 const MAX_SCHEDULES = 5;
 const MIN_STEPS_PER_FEED = 1;
 const MAX_STEPS_PER_FEED = 10240;
@@ -126,119 +121,6 @@ const getRemoteConfiguration = async (req, res) => {
       "Error al obtener configuración del feeder:",
       error
     );
-
-    return res.status(500).json({
-      error: "Error interno del servidor"
-    });
-  }
-};
-
-// Registrar comedero (desde NodeMCU)
-const registerFeeder = async (req, res) => {
-  const feederId = req.deviceProvisioning.feederId;
-  const { name } = req.body;
-
-  console.log("[REGISTER] feederId:", feederId);
-  console.log("[REGISTER] MongoDB:", Feeder.db.name);
-
-  if (!feederId) {
-    return res.status(400).json({
-      error: "Datos de provisioning faltantes"
-    });
-  }
-
-  try {
-    const existingFeeder = await Feeder.findOne({ feederId });
-
-    console.log(
-      "[REGISTER] feeder encontrado:",
-      existingFeeder?.feederId
-    );
-
-    if (existingFeeder) {
-      return res.status(409).json({
-        error: "Ya existe un dispositivo con ese feederId"
-      });
-    }
-
-    const newFeeder = new Feeder({
-      feederId,
-      feederName: name || "CatFeeder"
-    });
-
-    await newFeeder.save();
-
-    return res.status(201).json({
-      message: "Comedero guardado correctamente"
-    });
-
-  } catch (error) {
-    console.error("Error al guardar comedero:", error);
-
-    return res.status(500).json({
-      error: "Hubo un error con el servidor"
-    });
-  }
-};
-
-//enrolar feeder leugo del register
-const enrollDevice = async (req, res) => {
-  const provisioning = req.deviceProvisioning;
-  const feederId = provisioning.feederId;
-  console.log("[ENROLL] provisioning:", provisioning);
-console.log("[ENROLL] feederId:", feederId);
-console.log("[ENROLL] MongoDB:", Feeder.db.name);
-
-  if (
-    !feederId ||
-    typeof feederId !== "string" ||
-    feederId.trim() === ""
-  ) {
-    return res.status(400).json({
-      error: "feederId es requerido"
-    });
-  }
-
-  try {
-    const feeder = await Feeder.findOne({ feederId })
-      .select("+deviceCredentialHash");
-
-    console.log(
-      "[ENROLL] feeder encontrado:",
-      feeder?.feederId
-    );
-    if (!feeder) {
-      return res.status(404).json({
-        error: "Feeder no encontrado"
-      });
-    }
-
-    if (feeder.deviceCredentialHash) {
-      return res.status(409).json({
-        error: "El dispositivo ya está enrolado"
-      });
-    }
-
-    const deviceCredential = generateDeviceCredential();
-
-    feeder.deviceCredentialHash =
-      hashDeviceCredential(deviceCredential);
-
-    await feeder.save();
-
-    provisioning.bootstrapSecretHash = null;
-    provisioning.status = "ENROLLED";
-    provisioning.enrolledAt = new Date();
-
-    await provisioning.save();
-
-    return res.status(201).json({
-      message: "Dispositivo enrolado correctamente",
-      deviceCredential
-    });
-
-  } catch (error) {
-    console.error("Error al enrolar dispositivo:", error);
 
     return res.status(500).json({
       error: "Error interno del servidor"
@@ -1132,7 +1014,6 @@ const heartbeat = async (req, res) => {
 
 
 module.exports = {
-  registerFeeder,
   getAllFeeders,
   getMyFeeders,
   getFeederById,
@@ -1153,6 +1034,5 @@ module.exports = {
   heartbeat,
   getRemoteConfiguration,
   updateFeederConfiguration,
-  enrollDevice,
 };
 
