@@ -45,29 +45,6 @@ const authenticateDevice = async (req, res, next) => {
 
   try {
     const feeder = await Feeder.findOne({ feederId }).select("+deviceCredentialHash");
-    
-  ///TESTTTTTT
-console.log("[DEVICE AUTH] feederId:", feederId);
-console.log("[DEVICE AUTH] credential recibida:", !!credential);
-console.log("[DEVICE AUTH] MongoDB:", Feeder.db.name);
-
-const feeder1 = await Feeder.findOne({ feederId });
-
-console.log(
-  "[DEVICE AUTH] feeder1 encontrado:",
-  feeder1 ? feeder1.feederId : "undefined"
-);
-console.log(
-  "[DEVICE AUTH] credential hash:",
-  hashDeviceCredential(credential)
-);
-
-console.log(
-  "[DEVICE AUTH] feeder hash:",
-  feeder?.deviceCredentialHash
-);
-///TESTTTTTT
-
 
     if (!feeder) {
       return res.status(404).json({

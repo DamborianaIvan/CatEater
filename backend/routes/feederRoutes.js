@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const feederController = require('../controllers/feederController');
-const verifyToken = require('../middlewares/authMiddleware'); // Middleware para proteger rutas (JWT)
+const verifyToken = require('../middlewares/authMiddleware');
 const authenticateDevice = require('../middlewares/deviceAuthMiddleware');
 /**
  * @swagger
