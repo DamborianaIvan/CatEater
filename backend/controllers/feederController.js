@@ -904,8 +904,6 @@ module.exports = {
   getMyFeeders,
   getFeederById,
   getGlobalFeederById,
-  assignFeeder,
-  unassignFeeder,
   deleteFeeder,
   addStartHours,
   startMotor,
