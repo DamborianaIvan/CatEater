@@ -3,12 +3,6 @@ const router = express.Router();
 const feederController = require('../controllers/feederController');
 const verifyToken = require('../middlewares/authMiddleware');
 const authenticateDevice = require('../middlewares/deviceAuthMiddleware');
-/**
- * @swagger
- * tags:
- *   name: Feeders
- *   description: Endpoints que trabajan sobre las globales de feeders
- */
 
 /**
  * @swagger
