@@ -1,6 +1,7 @@
 #include "web/WebServer.h"
 #include "web/Pages.h"
 #include "services/WifiService.h"
+#include "domain/Configuration.h"
 #include <ArduinoJson.h>
 
 WebServer::WebServer(Motor& motor, WiFiService& wifi, FeedingService& feedingService,
@@ -97,9 +98,10 @@ void WebServer::handleFeed()
 
     if (accepted)
     {
-        _server.send(200, "application/json",
-                     R"json({"success":true,"message":"Feeding started","portions":)json" +
-                         String(portions) + "}");
+        String response = R"json({"success":true,"message":"Feeding started","portions":)json";
+        response += String(portions);
+        response += "}";
+        _server.send(200, "application/json", response);
     }
     else
     {
