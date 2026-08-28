@@ -2,7 +2,7 @@
 #include "domain/Configuration.h"
 
 Motor::Motor()
-    : _stepper(AccelStepper::FULL4WIRE, PIN_IN4, PIN_IN2, PIN_IN3, PIN_IN1)
+    : _stepper(AccelStepper::FULL4WIRE, PIN_IN1, PIN_IN3, PIN_IN2, PIN_IN4)
 
 {};
 // Esta funcion es la encargada de hacer que el motor avance. La linea .run hace que avance.
@@ -38,9 +38,10 @@ bool Motor::feed(int portions)
         Serial.println("[Motor] Cantidad de porciones invalida.");
         return false;
     }
+    // el static_cast es para decir que el valor no va a cambiar yt explicita la conversion a long
     // El sinfin esta montado con sentido de avance inverso.
     const long stepsPerFeed = static_cast<long>(_stepsPerFeed) * portions;
-    _stepper.move(stepsPerFeed);
+    _stepper.move(-stepsPerFeed);
     _isFeeding = true;
     return true;
 }
