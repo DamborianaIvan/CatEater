@@ -109,36 +109,46 @@ void printHeapTrace(const char* label)
     Serial.printf("[HEAP TRACE] %s: %u bytes\n", label, ESP.getFreeHeap());
 }
 
-void runOneShotHeapTrace()
+bool runOneShotHeapTrace()
 {
     static bool traceCompleted = false;
 
     if (traceCompleted || !timeService.isTimeAvailable())
     {
-        return;
+        return false;
     }
 
     traceCompleted = true;
 
     Serial.println();
     Serial.println("========== OOM TRACE ==========");
+
     printHeapTrace("before scheduler.update");
     scheduler.update();
     printHeapTrace("after scheduler.update");
 
-    printHeapTrace("before remoteState.update");
-    remoteStateService.update();
-    printHeapTrace("after remoteState.update");
+    printHeapTrace("before webServer.update");
+    webServer.update();
+    printHeapTrace("after webServer.update");
 
-    printHeapTrace("before heartbeat.update");
-    heartbeatService.update();
-    printHeapTrace("after heartbeat.update");
+    if (!motor.isFeeding())
+    {
+        printHeapTrace("before remoteState.update");
+        remoteStateService.update();
+        printHeapTrace("after remoteState.update");
 
-    printHeapTrace("before sync.update");
-    syncService.update();
-    printHeapTrace("after sync.update");
+        printHeapTrace("before heartbeat.update");
+        heartbeatService.update();
+        printHeapTrace("after heartbeat.update");
+
+        printHeapTrace("before sync.update");
+        syncService.update();
+        printHeapTrace("after sync.update");
+    }
+
     Serial.println("========== TRACE END ==========");
     Serial.println();
+    return true;
 }
 
 void setup()
@@ -189,7 +199,13 @@ void loop()
     }
 
     timeService.update();
-    runOneShotHeapTrace();
+
+    if (runOneShotHeapTrace())
+    {
+        // The trace already executed this iteration's runtime services in the
+        // same order as the normal loop. Avoid executing them twice.
+        return;
+    }
 
     scheduler.update();
     webServer.update();
