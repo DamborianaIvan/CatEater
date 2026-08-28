@@ -42,8 +42,7 @@ DeviceCredentialStorage deviceCredentialStorage;
 ApiClient apiClient(httpClient, deviceInfo, backendConnectionService, deviceCredentialStorage);
 RemoteCommandStorage remoteCommandStorage;
 OtaService otaService(motor);
-WebServer webServer(motor, wifi, feedingService, scheduler, configuration, storage, otaService,
-                    backendConnectionService);
+WebServer webServer(motor, wifi, feedingService, otaService, backendConnectionService);
 HeartbeatService heartbeatService(apiClient, wifi);
 ButtonService buttonService(feedingService, D0);
 SyncService syncService(apiClient, feedingHistoryService, timeService, wifi);
