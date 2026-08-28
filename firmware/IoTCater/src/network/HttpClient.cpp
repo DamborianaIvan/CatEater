@@ -15,11 +15,11 @@ HttpResponse HttpClient::post(const String& url, const String& body, HttpHeaders
 {
     return executeRequest(url, HttpMethod::Post, body, headers, timeoutMs);
 }
+
 HttpResponse HttpClient::executeRequest(const String& url, HttpMethod method, const String& body,
                                         const HttpHeaders& headers, uint16_t timeoutMs)
 {
     HttpResponse response;
-
     HTTPClient http;
 
     bool started = false;
@@ -60,9 +60,12 @@ HttpResponse HttpClient::executeRequest(const String& url, HttpMethod method, co
             return response;
     }
 
-    if (response.statusCode > 0)
+    // ESP8266HTTPClient uses negative values for transport-level failures.
+    // A positive value means an HTTP response was received, including 4xx/5xx.
+    response.transportSuccess = response.statusCode > 0;
+
+    if (response.transportSuccess)
     {
-        response.success = true;
         response.body = http.getString();
     }
 
