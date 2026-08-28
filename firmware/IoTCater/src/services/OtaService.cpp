@@ -1,16 +1,13 @@
 #include "services/OtaService.h"
 
 namespace
-{
-constexpr char OTA_USERNAME[] = "admin";
+{\nconstexpr char OTA_USERNAME[] = "admin";
 }
 
 OtaService::OtaService(Motor& motor) : _motor(motor) {}
 
 bool OtaService::isAuthorized(ESP8266WebServer& server) const
 {
-    // La contraseña se define mediante una macro local de compilación y nunca
-    // debe almacenarse en el repositorio.
 #ifdef CATFEEDER_OTA_PASSWORD
     if (!server.authenticate(OTA_USERNAME, CATFEEDER_OTA_PASSWORD))
     {
@@ -94,7 +91,6 @@ bool OtaService::writeUpdateChunk(HTTPUpload& upload)
     {
         _updateFailed = true;
         Serial.println("[OtaService] El firmware recibido supera el tamaño declarado.");
-        Update.abort();
         return false;
     }
 
@@ -105,7 +101,6 @@ bool OtaService::writeUpdateChunk(HTTPUpload& upload)
         _updateFailed = true;
         Serial.printf("[OtaService] Error escribiendo OTA: %s\n",
                       Update.getErrorString().c_str());
-        Update.abort();
         return false;
     }
 
@@ -117,7 +112,6 @@ bool OtaService::finishUpdate(ESP8266WebServer& server, HTTPUpload& upload)
 {
     if (!_updateInProgress || _updateFailed)
     {
-        Update.abort();
         _updateInProgress = false;
         server.send(500, "application/json", R"({"success":false,"message":"OTA failed"})");
         return false;
@@ -129,7 +123,6 @@ bool OtaService::finishUpdate(ESP8266WebServer& server, HTTPUpload& upload)
                       static_cast<unsigned int>(_receivedSize),
                       static_cast<unsigned int>(_expectedSize),
                       static_cast<unsigned int>(upload.totalSize));
-        Update.abort();
         _updateInProgress = false;
         server.send(400, "application/json", R"({"success":false,"message":"Incomplete firmware"})");
         return false;
@@ -158,11 +151,6 @@ bool OtaService::finishUpdate(ESP8266WebServer& server, HTTPUpload& upload)
 
 void OtaService::abortUpdate()
 {
-    if (_updateInProgress)
-    {
-        Update.abort();
-    }
-
     _updateInProgress = false;
     _updateFailed = true;
     _expectedSize = 0;
