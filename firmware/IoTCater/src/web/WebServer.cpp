@@ -4,6 +4,7 @@
 #include "storage/ConfigurationStorage.h"
 #include <ArduinoJson.h>
 #include "services/Scheduler.h"
+#include "config/Config.h"
 
 WebServer::WebServer(Motor& motor, WiFiService& wifi, FeedingService& feedingService,
                      Scheduler& scheduler, Configuration& configuration,
@@ -128,6 +129,10 @@ void WebServer::handleStatus()
 
     response += "\"ipAddress\": ";
     response += "\"" + ipAddress + "\"";
+    response += ",";
+
+    response += "\"firmwareVersion\": ";
+    response += "\"" + String(FIRMWARE_VERSION) + "\"";
 
     response += "}";
 
