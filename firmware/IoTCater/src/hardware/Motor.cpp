@@ -20,6 +20,7 @@ void Motor::begin()
 {
     _stepper.setMaxSpeed(300);
     _stepper.setAcceleration(100);
+    _stepper.setPinsInverted(true, false, false);
     Serial.println("[Motor] Inicializado");
 }
 
