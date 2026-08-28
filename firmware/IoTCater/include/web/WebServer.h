@@ -6,8 +6,6 @@
 #include <ESP8266WebServer.h>
 #include "services/WifiService.h"
 #include "services/FeedingService.h"
-#include "storage/ConfigurationStorage.h"
-#include "services/Scheduler.h"
 #include "services/OtaService.h"
 #include "services/BackendConnectionService.h"
 
@@ -15,8 +13,7 @@ class WebServer
 {
    public:
     explicit WebServer(Motor& motor, WiFiService& wifi, FeedingService& feedingService,
-                       Scheduler& scheduler, Configuration& configuration,
-                       ConfigurationStorage& storage, OtaService& otaService,
+                       OtaService& otaService,
                        const BackendConnectionService& backendConnectionService);
     void begin();
     void stop();
@@ -26,21 +23,15 @@ class WebServer
     Motor& _motor;
     WiFiService& _wifi;
     FeedingService& _feedingService;
-    ConfigurationStorage& _storage;
     ESP8266WebServer _server{80};
-    Configuration& _configuration;
-    Scheduler& _scheduler;
     OtaService& _otaService;
     const BackendConnectionService& _backendConnectionService;
     bool _started = false;
-    bool isValidSchedule(int hour, int minute, int portions) const;
     void registerRoutes();
     void handleHome();
     void handleFeed();
     void handleStatus();
     void handleNotFound();
-    void handleUpdateConfig();
-    void handleGetConfiguration();
 };
 
 #endif
