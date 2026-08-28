@@ -106,7 +106,8 @@ bool hasWifiJustConnected()
 
 void printHeapTrace(const char* label)
 {
-    Serial.printf("[HEAP TRACE] %s: %u bytes\n", label, ESP.getFreeHeap());
+    Serial.printf("[HEAP TRACE] %s: free=%u maxBlock=%u\n", label,
+                  ESP.getFreeHeap(), ESP.getMaxFreeBlockSize());
 }
 
 void runOneShotHeapTrace()
@@ -201,24 +202,18 @@ void loop()
         return;
     }
 
-    // Diagnostic mode: run the normal service sequence only once after time
-    // synchronization, then stop the loop. This prevents a second normal loop
-    // iteration from obscuring which operation triggers the OOM.
+    // Diagnostic mode: execute one normal service cycle and then halt here.
+    // This prevents the next loop iteration or background service activity from
+    // obscuring the allocation that causes the OOM.
     static bool diagnosticCompleted = false;
     if (!diagnosticCompleted)
     {
         runOneShotHeapTrace();
         diagnosticCompleted = true;
-        return;
-    }
 
-    scheduler.update();
-    webServer.update();
-
-    if (!motor.isFeeding())
-    {
-        remoteStateService.update();
-        heartbeatService.update();
-        syncService.update();
+        while (true)
+        {
+            delay(1000);
+        }
     }
 }
