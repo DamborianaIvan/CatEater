@@ -104,6 +104,11 @@ bool hasWifiJustConnected()
     return connected;
 }
 
+void printHeapTrace(const char* label)
+{
+    Serial.printf("[HEAP TRACE] %s: %u bytes\n", label, ESP.getFreeHeap());
+}
+
 void setup()
 {
     Serial.begin(115200);
@@ -152,13 +157,25 @@ void loop()
     }
 
     timeService.update();
+
+    printHeapTrace("before scheduler.update");
     scheduler.update();
+    printHeapTrace("after scheduler.update");
+
     webServer.update();
 
     if (!motor.isFeeding())
     {
+        printHeapTrace("before remoteState.update");
         remoteStateService.update();
+        printHeapTrace("after remoteState.update");
+
+        printHeapTrace("before heartbeat.update");
         heartbeatService.update();
+        printHeapTrace("after heartbeat.update");
+
+        printHeapTrace("before sync.update");
         syncService.update();
+        printHeapTrace("after sync.update");
     }
 }
