@@ -1,7 +1,8 @@
 #include "services/OtaService.h"
 
 namespace
-{\nconstexpr char OTA_USERNAME[] = "admin";
+{
+constexpr char OTA_USERNAME[] = "admin";
 }
 
 OtaService::OtaService(Motor& motor) : _motor(motor) {}
