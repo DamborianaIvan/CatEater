@@ -20,7 +20,6 @@ void Motor::begin()
 {
     _stepper.setMaxSpeed(300);
     _stepper.setAcceleration(100);
-    _stepper.setPinsInverted(true, false, false);
     Serial.println("[Motor] Inicializado");
 }
 
@@ -40,8 +39,9 @@ bool Motor::feed(int portions)
         return false;
     }
     // el static_cast es para decir que el valor no va a cambiar yt explicita la conversion a long
+    // El sinfin esta montado con sentido de avance inverso.
     const long stepsPerFeed = static_cast<long>(_stepsPerFeed) * portions;
-    _stepper.move(stepsPerFeed);
+    _stepper.move(-stepsPerFeed);
     _isFeeding = true;
     return true;
 }
