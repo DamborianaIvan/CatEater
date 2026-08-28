@@ -22,6 +22,11 @@ bool ApiClient::canAttemptRequest() const
     return _backendConnectionService.canAttempt();
 }
 
+bool ApiClient::isBackendAvailable() const
+{
+    return _backendConnectionService.isAvailable();
+}
+
 void ApiClient::updateBackendAvailability(const HttpResponse& response)
 {
     if (response.isHttpSuccess())
