@@ -22,7 +22,7 @@ class Motor
     bool _isFeeding = false;
     int _stepsPerFeed;
     static const uint8_t PIN_IN1 = D1;
-    static const uint8_t PIN_IN2 = D3;
+    static const uint8_t PIN_IN2 = D2;
     static const uint8_t PIN_IN3 = D6;
     static const uint8_t PIN_IN4 = D7;
     AccelStepper _stepper;
