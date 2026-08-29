@@ -18,8 +18,8 @@ void Motor::update()
 
 void Motor::begin()
 {
-    _stepper.setMaxSpeed(700);
-    _stepper.setAcceleration(200);
+    _stepper.setMaxSpeed(600);
+    _stepper.setAcceleration(100);
     Serial.println("[Motor] Inicializado");
 }
 
