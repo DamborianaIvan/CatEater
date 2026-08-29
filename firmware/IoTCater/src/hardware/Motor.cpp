@@ -39,6 +39,7 @@ bool Motor::feed(int portions)
         return false;
     }
     // el static_cast es para decir que el valor no va a cambiar yt explicita la conversion a long
+    // El sinfin esta montado con sentido de avance inverso.
     const long stepsPerFeed = static_cast<long>(_stepsPerFeed) * portions;
     _stepper.move(-stepsPerFeed);
     _isFeeding = true;
