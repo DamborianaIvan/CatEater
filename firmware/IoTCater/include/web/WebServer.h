@@ -8,13 +8,15 @@
 #include "services/FeedingService.h"
 #include "services/OtaService.h"
 #include "services/BackendConnectionService.h"
+#include "services/DiagnosticService.h"
 
 class WebServer
 {
    public:
     explicit WebServer(Motor& motor, WiFiService& wifi, FeedingService& feedingService,
                        OtaService& otaService,
-                       const BackendConnectionService& backendConnectionService);
+                       const BackendConnectionService& backendConnectionService,
+                       DiagnosticService& diagnostics);
     void begin();
     void stop();
     void update();
@@ -26,11 +28,14 @@ class WebServer
     ESP8266WebServer _server{80};
     OtaService& _otaService;
     const BackendConnectionService& _backendConnectionService;
+    DiagnosticService& _diagnostics;
     bool _started = false;
     void registerRoutes();
     void handleHome();
     void handleFeed();
     void handleStatus();
+    void handleDiagnostics();
+    void handleDiagnosticsClear();
     void handleNotFound();
 };
 
