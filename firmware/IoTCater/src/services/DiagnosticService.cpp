@@ -2,7 +2,7 @@
 
 bool DiagnosticService::begin()
 {
-    return true;
+    return LittleFS.begin();
 }
 
 void DiagnosticService::rotateIfNeeded(size_t nextEntrySize)
@@ -39,7 +39,6 @@ void DiagnosticService::record(const char* code, const char* detail)
         return;
     }
 
-    const unsigned long timestamp = millis();
     const size_t entrySize = strlen(code) + strlen(detail) + 32;
     rotateIfNeeded(entrySize);
 
@@ -49,7 +48,7 @@ void DiagnosticService::record(const char* code, const char* detail)
         return;
     }
 
-    file.print(timestamp);
+    file.print(millis());
     file.print('|');
     file.print(code);
 
@@ -61,4 +60,30 @@ void DiagnosticService::record(const char* code, const char* detail)
 
     file.println();
     file.close();
+}
+
+String DiagnosticService::read()
+{
+    if (!LittleFS.exists(DIAGNOSTIC_FILE))
+    {
+        return "";
+    }
+
+    File file = LittleFS.open(DIAGNOSTIC_FILE, "r");
+    if (!file)
+    {
+        return "";
+    }
+
+    String content = file.readString();
+    file.close();
+    return content;
+}
+
+void DiagnosticService::clear()
+{
+    if (LittleFS.exists(DIAGNOSTIC_FILE))
+    {
+        LittleFS.remove(DIAGNOSTIC_FILE);
+    }
 }
