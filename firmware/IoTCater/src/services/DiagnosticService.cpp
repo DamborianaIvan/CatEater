@@ -2,11 +2,6 @@
 
 bool DiagnosticService::begin()
 {
-    if (!LittleFS.begin())
-    {
-        return false;
-    }
-
     return true;
 }
 
