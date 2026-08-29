@@ -9,6 +9,8 @@ class DiagnosticService
     bool begin();
     void record(const char* code);
     void record(const char* code, const char* detail);
+    String read();
+    void clear();
 
    private:
     static constexpr const char* DIAGNOSTIC_FILE = "/diagnostics.log";
