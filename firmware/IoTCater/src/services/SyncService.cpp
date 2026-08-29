@@ -28,25 +28,16 @@ void SyncService::update()
 
     _lastSync = millis();
 
-    const auto pendingEvents = _historyService.getPendingEvents();
-
-    if (pendingEvents.empty())
+    FeedingEvent event;
+    while (_historyService.getNextPendingEvent(event))
     {
-        return;
-    }
-
-    for (const auto& event : pendingEvents)
-    {
-        if (_apiClient.syncFeedingEvent(event))
+        if (!_apiClient.syncFeedingEvent(event))
         {
-            if (_historyService.markAsSynced(event.eventId))
-            {
-                Serial.println("[SyncService] Evento sincronizado.");
-            }
+            break;
         }
-        else
+
+        if (!_historyService.markAsSynced(event.eventId))
         {
-            Serial.println("[SyncService] Error sincronizando evento.");
             break;
         }
     }

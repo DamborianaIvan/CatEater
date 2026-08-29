@@ -23,6 +23,7 @@ class RemoteStateService
     WiFiService& _wifiService;
     RemoteCommandStorage& _commandStorage;
     ConfigurationSyncService& _configurationSyncService;
+
     static constexpr unsigned long CONFIRMATION_RETRY_INTERVAL = 5000;
     static constexpr unsigned long POLL_INTERVAL = 5000;
 

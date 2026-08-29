@@ -18,6 +18,7 @@ class ApiClient
               DeviceCredentialStorage& deviceCredentialStorage);
 
     bool hasDeviceCredential() const;
+    bool isBackendAvailable() const;
     bool getFeederInfo(FeederInfo& feederInfo);
     bool getRemoteConfiguration(Configuration& configuration, uint32_t& revision);
     bool getMotorState(bool& motorState, int& portions, String& commandId,

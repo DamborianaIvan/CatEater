@@ -11,6 +11,7 @@ RemoteStateService::RemoteStateService(ApiClient& apiClient, FeedingService& fee
       _configurationSyncService(configurationSyncService)
 {
 }
+
 void RemoteStateService::update()
 {
     if (!_wifiService.isConnected())
@@ -18,13 +19,21 @@ void RemoteStateService::update()
         return;
     }
 
-    if (millis() - _lastRequest < POLL_INTERVAL)
+    // Remote state is best-effort. If the backend is unavailable, do not even
+    // enter the polling path. Local feeding/scheduling must remain unaffected.
+    if (!_apiClient.isBackendAvailable())
     {
         return;
     }
 
-    _lastRequest = millis();
+    const unsigned long now = millis();
 
+    if (now - _lastRequest < POLL_INTERVAL)
+    {
+        return;
+    }
+
+    _lastRequest = now;
     pollMotorState();
 }
 
@@ -51,7 +60,6 @@ void RemoteStateService::pollMotorState()
     if (!_apiClient.getMotorState(motorState, portions, commandId, configRevision))
     {
         Serial.println("[RemoteStateService] Error al consultar motor state.");
-
         return;
     }
 
@@ -87,6 +95,12 @@ void RemoteStateService::pollMotorState()
         {
             _lastConfirmationAttempt = millis();
 
+            if (!_apiClient.isBackendAvailable())
+            {
+                Serial.println("[RemoteStateService] Backend no disponible. Confirmacion pendiente.");
+                return;
+            }
+
             Serial.println("[RemoteStateService] Confirmando alimentacion remota...");
 
             if (_apiClient.completeMotorCommand(_activeCommandId))
@@ -98,7 +112,6 @@ void RemoteStateService::pollMotorState()
                 if (!_commandStorage.save(_command))
                 {
                     Serial.println("[RemoteStateService] Error guardando comando completado.");
-
                     return;
                 }
 
@@ -112,6 +125,7 @@ void RemoteStateService::pollMotorState()
         }
     }
 }
+
 bool RemoteStateService::processCommand(const String& commandId, int portions)
 {
     if (commandId.isEmpty())
@@ -128,7 +142,6 @@ bool RemoteStateService::processCommand(const String& commandId, int portions)
     if (!_commandStorage.save(command))
     {
         Serial.println("[RemoteStateService] No se pudo persistir el comando.");
-
         return false;
     }
 
@@ -144,7 +157,6 @@ bool RemoteStateService::processCommand(const String& commandId, int portions)
     if (!_feedingService.feed(portions, FeedingSource::Remote))
     {
         Serial.println("[RemoteStateService] No se pudo iniciar la alimentacion.");
-
         return false;
     }
 
@@ -153,7 +165,6 @@ bool RemoteStateService::processCommand(const String& commandId, int portions)
     if (!_commandStorage.save(command))
     {
         Serial.println("[RemoteStateService] Error persistiendo estado executing.");
-
         return false;
     }
 

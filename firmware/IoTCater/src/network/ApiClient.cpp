@@ -22,11 +22,16 @@ bool ApiClient::canAttemptRequest() const
     return _backendConnectionService.canAttempt();
 }
 
+bool ApiClient::isBackendAvailable() const
+{
+    return _backendConnectionService.isAvailable();
+}
+
 void ApiClient::updateBackendAvailability(const HttpResponse& response)
 {
-    if (response.success && response.statusCode > 0)
+    if (response.isHttpSuccess())
         _backendConnectionService.recordSuccess();
-    else
+    else if (!response.transportSuccess || response.statusCode >= 500)
         _backendConnectionService.recordFailure();
 }
 
@@ -48,7 +53,7 @@ bool ApiClient::getFeederInfo(FeederInfo& feederInfo)
     HttpResponse response = _httpClient.get(buildUrl(endpoint), headers);
     updateBackendAvailability(response);
 
-    if (!response.success || response.statusCode != 200)
+    if (!response.isHttpSuccess() || response.statusCode != 200)
         return false;
 
     JsonDocument document;
@@ -81,7 +86,7 @@ bool ApiClient::getMotorState(bool& motorState, int& portions, String& commandId
     HttpResponse response = _httpClient.get(buildUrl(endpoint), headers, MOTOR_STATE_TIMEOUT_MS);
     updateBackendAvailability(response);
 
-    if (!response.success || response.statusCode != 200)
+    if (!response.isHttpSuccess() || response.statusCode != 200)
         return false;
 
     JsonDocument document;
@@ -114,7 +119,7 @@ bool ApiClient::getRemoteConfiguration(Configuration& configuration, uint32_t& r
     HttpResponse response = _httpClient.get(buildUrl(endpoint), headers, BACKGROUND_TIMEOUT_MS);
     updateBackendAvailability(response);
 
-    if (!response.success || response.statusCode != 200)
+    if (!response.isHttpSuccess() || response.statusCode != 200)
         return false;
 
     JsonDocument document;
@@ -172,7 +177,7 @@ bool ApiClient::completeMotorCommand(const String& commandId)
         _httpClient.post(buildUrl("/feeder/complete"), body, headers, BACKGROUND_TIMEOUT_MS);
     updateBackendAvailability(response);
 
-    return response.success && response.statusCode >= 200 && response.statusCode < 300;
+    return response.isHttpSuccess();
 }
 
 bool ApiClient::sendHeartbeat()
@@ -201,7 +206,7 @@ bool ApiClient::sendHeartbeat()
         _httpClient.post(buildUrl(DEVICE_HEARTBEAT_ENDPOINT), body, headers, BACKGROUND_TIMEOUT_MS);
     updateBackendAvailability(response);
 
-    if (response.success && response.statusCode >= 200 && response.statusCode < 300)
+    if (response.isHttpSuccess())
         return true;
 
     if (response.statusCode == 401)
@@ -259,7 +264,7 @@ bool ApiClient::syncFeedingEvent(const FeedingEvent& event)
         _httpClient.post(buildUrl("/feeders/history"), body, headers, EVENT_SYNC_TIMEOUT_MS);
     updateBackendAvailability(response);
 
-    return response.success && response.statusCode >= 200 && response.statusCode < 300;
+    return response.isHttpSuccess();
 }
 
 bool ApiClient::hasDeviceCredential() const
