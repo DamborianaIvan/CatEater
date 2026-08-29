@@ -3,7 +3,6 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <LittleFS.h>
-#include <vector>
 
 #include "domain/FeedingEvent.h"
 
@@ -17,7 +16,7 @@ class FeedingHistoryService
     bool trimHistory();
 
     std::vector<FeedingEvent> getHistory();
-    std::vector<FeedingEvent> getPendingEvents();
+    bool getNextPendingEvent(FeedingEvent& event);
 
    private:
     static constexpr const char* HISTORY_FILE = "/feeding_history.json";
