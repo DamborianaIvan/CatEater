@@ -7,658 +7,528 @@ const authenticateDevice = require('../middlewares/deviceAuthMiddleware');
 /**
  * @swagger
  * tags:
- *   name: Feeder
- *   description: Endpoints que trabajan sobre las acciones del feeder.
- */ 
+ *   - name: Feeders
+ *     description: Gestión de comederos, motor, configuración e historial.
+ *
+ * components:
+ *   schemas:
+ *     Feeder:
+ *       type: object
+ *       properties:
+ *         _id: { type: string, example: 67f707fa9b66a6ee96d447a3 }
+ *         feederId: { type: string, example: ESP8266-001 }
+ *         userId: { type: string, nullable: true, example: 67f6d3af066a14a9d9699bd3 }
+ *         feederName: { type: string, example: Comedero Cocina }
+ *         feederLogo: { type: string, example: cat }
+ *         feederAsign: { type: boolean, example: true }
+ *         feederQuantity: { type: number, example: 0 }
+ *         lastConection: { type: string, format: date-time }
+ *         motorInfo:
+ *           type: object
+ *           properties:
+ *             startHours:
+ *               type: array
+ *               items: { type: string, format: date-time }
+ *             motorState: { type: boolean, example: false }
+ *             portions: { type: integer, minimum: 1, maximum: 5, example: 1 }
+ *             commandId: { type: string, nullable: true }
+ *         configuration:
+ *           $ref: '#/components/schemas/FeederConfiguration'
+ *         feederHistory:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/FeedingEvent'
+ *     FeederConfiguration:
+ *       type: object
+ *       required: [revision, stepsPerFeed, schedules]
+ *       properties:
+ *         revision: { type: integer, minimum: 1, example: 3 }
+ *         stepsPerFeed: { type: integer, minimum: 1, maximum: 10240, example: 2048 }
+ *         schedules:
+ *           type: array
+ *           minItems: 5
+ *           maxItems: 5
+ *           items:
+ *             $ref: '#/components/schemas/Schedule'
+ *     Schedule:
+ *       type: object
+ *       required: [hour, minute, portions, enabled]
+ *       properties:
+ *         hour: { type: integer, minimum: 0, maximum: 23, example: 8 }
+ *         minute: { type: integer, minimum: 0, maximum: 59, example: 30 }
+ *         portions: { type: integer, minimum: 1, maximum: 5, example: 1 }
+ *         enabled: { type: boolean, example: true }
+ *     FeedingEvent:
+ *       type: object
+ *       properties:
+ *         eventId: { type: string, nullable: true, example: evt-000001 }
+ *         fecha: { type: string, format: date-time }
+ *         portions: { type: integer, minimum: 1, example: 1 }
+ *         source: { type: string, enum: [physical, scheduled, remote, legacy], example: remote }
+ *     Error:
+ *       type: object
+ *       properties:
+ *         message: { type: string }
+ *         error: { type: string }
+ *     DeviceError:
+ *       type: object
+ *       properties:
+ *         message: { type: string }
+ *         error: { type: string }
+ */
 
-// Obtener comederos desde NodeMCU por feederId
 /**
  * @swagger
  * /feeders/global/{feederId}:
  *   get:
- *     summary: Obtener información de un comedero desde NodeMCU
- *     description: Este endpoint permite obtener los datos básicos del comedero (`feederName`, `feederLogo`, `feederQuantity`, `lastConection`) utilizando el `feederId`. También verifica si el motor debe activarse basándose en las horas programadas.
- *     tags:
- *       - Feeders
+ *     summary: Obtener información del feeder para el dispositivo
+ *     description: Endpoint usado por el firmware. Devuelve información pública del feeder y puede activar la orden del motor si coincide el minuto UTC con un horario legacy.
+ *     tags: [Feeders]
+ *     security: [{ deviceCredential: [] }]
  *     parameters:
- *       - in: header
- *         name: x-api-key
- *         required: true
- *         schema:
- *           type: string
- *         description: API Key para autorización desde el NodeMCU
  *       - in: path
  *         name: feederId
  *         required: true
- *         schema:
- *           type: string
- *         description: ID del comedero a consultar
+ *         schema: { type: string }
  *     responses:
  *       200:
- *         description: Comedero obtenido correctamente
+ *         description: Información obtenida.
  *         content:
  *           application/json:
- *             example:
- *               message: "Comedero obtenido correctamente"
- *               feederQuantity: 2
- *               feederName: "Comedero Cocina"
- *               feederLogo: "cat"
- *               lastConection: "2025-04-10T17:22:36.829Z"
- *
- *       400:
- *         description: El campo feederId está vacío o malformado
- *         content:
- *           application/json:
- *             example:
- *               message: "El campo 'feederId' no puede estar vacío"
- *
- *       401:
- *         description: API Key no enviada
- *         content:
- *           application/json:
- *             example:
- *               message: "Falta la API Key"
- *
- *       403:
- *         description: API Key inválida
- *         content:
- *           application/json:
- *             example:
- *               message: "API Key inválida"
- *
- *       404:
- *         description: No se encontró un comedero con ese ID
- *         content:
- *           application/json:
- *             example:
- *               errorCode: 404
- *               message: "No se encontró un comedero con esa ID"
- *
- *       500:
- *         description: Error interno al obtener o modificar datos del comedero
- *         content:
- *           application/json:
- *             examples:
- *               errorObtencion:
- *                 summary: Error al obtener comedero
- *                 value:
- *                   message: "Error al obtener comedero"
- *                   error: "Mensaje de error del servidor"
- *               errorActualizacion:
- *                 summary: Error al modificar estado del motor
- *                 value:
- *                   message: "No se pudo modificar estado del motor"
- *                   error: "Mensaje de error del servidor"
+ *             example: { message: Comedero obtenido correctamente, feederQuantity: 0, feederName: Comedero Cocina, feederLogo: cat, lastConection: '2026-08-31T18:00:00.000Z' }
+ *       400: { description: feederId vacío o inválido. }
+ *       401: { description: Credencial de dispositivo faltante o inválida. }
+ *       404: { description: Feeder no encontrado. }
+ *       500: { description: Error interno. }
  */
 router.get('/feeders/global/:feederId', authenticateDevice, feederController.getGlobalFeederById);
 
-// Obtener todos los comederos (solo para admin o debugging si lo necesitás)
 /**
  * @swagger
  * /feeders:
  *   get:
- *     summary: Obtener todos los comederos registrados
+ *     summary: Obtener todos los feeders
+ *     description: Devuelve todos los documentos de Feeder. Actualmente requiere JWT pero no aplica control de rol ni de propietario.
  *     tags: [Feeders]
+ *     security: [{ bearerAuth: [] }]
  *     responses:
  *       200:
- *         description: Lista de comederos
+ *         description: Lista de feeders.
  *         content:
  *           application/json:
- *             example:
- *               - feederId: MAC123
- *                 name: Cocina
- *                 userId: null
- *       400:
- *         description: Error al obtener los comederos
- *         content:
- *           application/json:
- *             example:
- *               message: Error al obtener los comederos
+ *             schema: { type: array, items: { $ref: '#/components/schemas/Feeder' } }
+ *       401: { description: JWT faltante o inválido. }
+ *       400: { description: Error al consultar los feeders. }
  */
 router.get('/feeders', verifyToken, feederController.getAllFeeders);
 
-// Obtener comederos asignados al usuario logueado
 /**
  * @swagger
  * /feeders/my:
  *   get:
- *     summary: Obtener todos los comederos asignados al usuario autenticado
- *     description: Este endpoint permite obtener la lista de comederos asociados al usuario actualmente autenticado mediante JWT.
- *     tags:
- *       - Feeders
- *     security:
- *       - bearerAuth: []
+ *     summary: Obtener mis feeders
+ *     tags: [Feeders]
+ *     security: [{ bearerAuth: [] }]
  *     responses:
  *       200:
- *         description: Lista de comederos obtenida exitosamente
+ *         description: Feeders pertenecientes al usuario autenticado.
  *         content:
  *           application/json:
- *             example:
- *               - _id: "67f707fa9b66a6ee96d447a3"
- *                 feederId: "8"
- *                 userId: "67f6d3af066a14a9d9699bd3"
- *                 feederName: "Patsy.Nikolaus19"
- *                 feederLogo: "fish"
- *                 feederAsign: true
- *                 feederQuantity: 0
- *                 motorInfo:
- *                   motorState: false
- *                   startHours:
- *                     - "2025-04-10T20:48:00.000Z"
- *                     - "2025-04-10T20:49:00.000Z"
- *                 lastConection: "2025-04-10T17:22:36.829Z"
- *                 __v: 0
- *       401:
- *         description: Usuario no autenticado
- *         content:
- *           application/json:
- *             example:
- *               message: "Acceso no autorizado - usuario no autenticado."
- *       404:
- *         description: No se encontraron comederos para el usuario
- *         content:
- *           application/json:
- *             example:
- *               message: "No se encontraron comederos para este usuario."
- *       500:
- *         description: Error interno del servidor al obtener los comederos
- *         content:
- *           application/json:
- *             example:
- *               message: "Error al obtener los comederos"
- *               error: "Mensaje de error del servidor"
+ *             schema: { type: array, items: { $ref: '#/components/schemas/Feeder' } }
+ *       401: { description: Usuario no autenticado. }
+ *       500: { description: Error interno. }
  */
 router.get('/feeders/my', verifyToken, feederController.getMyFeeders);
 
-// Obtener un comedero específico por feederId para el usuario logueado
 /**
  * @swagger
  * /feeders/{feederId}:
  *   get:
- *     summary: Obtener un comedero por feederId para el usuario autenticado
- *     description: Este endpoint devuelve la información de un comedero específico que pertenece al usuario autenticado.
- *     tags:
- *       - Feeders
- *     security:
- *       - bearerAuth: []
+ *     summary: Obtener un feeder propio
+ *     tags: [Feeders]
+ *     security: [{ bearerAuth: [] }]
  *     parameters:
  *       - in: path
  *         name: feederId
  *         required: true
- *         description: ID del comedero a buscar
- *         schema:
- *           type: string
+ *         schema: { type: string }
  *     responses:
  *       200:
- *         description: Comedero encontrado y retornado con éxito
+ *         description: Feeder encontrado.
  *         content:
  *           application/json:
- *             example:
- *               _id: "67f707fa9b66a6ee96d447a3"
- *               feederId: "8"
- *               userId: "67f6d3af066a14a9d9699bd3"
- *               feederName: "Patsy.Nikolaus19"
- *               feederLogo: "fish"
- *               feederAsign: true
- *               feederQuantity: 0
- *               motorInfo:
- *                 motorState: false
- *                 startHours:
- *                   - "2025-04-10T20:48:00.000Z"
- *                   - "2025-04-10T20:49:00.000Z"
- *               lastConection: "2025-04-10T17:22:36.829Z"
- *               __v: 0
- *       400:
- *         description: Parámetro feederId faltante o vacío
- *         content:
- *           application/json:
- *             example:
- *               message: "El parámetro feederId es obligatorio y no puede estar vacío."
- *       401:
- *         description: Usuario no autenticado
- *         content:
- *           application/json:
- *             example:
- *               message: "Acceso no autorizado - usuario no identificado."
- *       404:
- *         description: No se encontró el comedero para el usuario
- *         content:
- *           application/json:
- *             example:
- *               message: "Comedero no encontrado para el usuario especificado."
- *       500:
- *         description: Error al consultar el comedero en la base de datos
- *         content:
- *           application/json:
- *             example:
- *               message: "Error al obtener comedero"
- *               error: "Mensaje del error del servidor"
+ *             schema: { $ref: '#/components/schemas/Feeder' }
+ *       400: { description: feederId faltante o vacío. }
+ *       401: { description: Usuario no autenticado. }
+ *       404: { description: El feeder no pertenece al usuario o no existe. }
+ *       500: { description: Error interno. }
  */
 router.get('/feeders/:feederId', verifyToken, feederController.getFeederById);
 
-//Encender comedero
 /**
  * @swagger
  * /feeder/start:
  *   post:
- *     summary: Enciende el motor de un comedero
- *     description: Permite al usuario autenticado encender el motor de un comedero asignado.
- *     tags:
- *       - Feeder
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           example:
- *             feederId: "8"
- *     responses:
- *       200:
- *         description: Motor del comedero encendido con éxito
- *         content:
- *           application/json:
- *             example:
- *               message: "Feeder encendedido con éxito"
- *       400:
- *         description: El motor ya está encendido
- *         content:
- *           application/json:
- *             example:
- *               message: "El motor ya está encendido"
- *       403:
- *         description: El comedero no está asignado o pertenece a otro usuario
- *         content:
- *           application/json:
- *             examples:
- *               sinAsignar:
- *                 summary: Comedero no asignado
- *                 value:
- *                   message: "Este comedero no está asignado a ningún usuario"
- *               noTePertenece:
- *                 summary: Comedero pertenece a otro usuario
- *                 value:
- *                   message: "Este comedero no te pertenece"
- *       404:
- *         description: Comedero no encontrado
- *         content:
- *           application/json:
- *             example:
- *               message: "Feeder no encontrado"
- *       500:
- *         description: Error interno del servidor
- *         content:
- *           application/json:
- *             example:
- *               message: "Error interno al desasignar el feeder"
- *               error: "Detalle del error"
- */
-router.post('/feeder/start', verifyToken,feederController.startMotor);
-
-//Frenar motor
-/**
- * @swagger
- * /feeder/stop:
- *   post:
- *     summary: Apaga el motor de un comedero
- *     description: Permite al usuario autenticado apagar el motor de un comedero que le pertenece.
- *     tags:
- *       - Feeder
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           example:
- *             feederId: "8"
- *     responses:
- *       200:
- *         description: Motor del comedero apagado con éxito
- *         content:
- *           application/json:
- *             example:
- *               message: "Feeder apagado con éxito"
- *       400:
- *         description: El motor ya está apagado
- *         content:
- *           application/json:
- *             example:
- *               message: "El motor ya está apagado"
- *       403:
- *         description: El comedero no está asignado o pertenece a otro usuario
- *         content:
- *           application/json:
- *             examples:
- *               sinAsignar:
- *                 summary: Comedero no asignado
- *                 value:
- *                   message: "Este comedero no está asignado a ningún usuario"
- *               noTePertenece:
- *                 summary: Comedero pertenece a otro usuario
- *                 value:
- *                   message: "Este comedero no te pertenece"
- *       404:
- *         description: Comedero no encontrado
- *         content:
- *           application/json:
- *             example:
- *               message: "Feeder no encontrado"
- *       500:
- *         description: Error interno del servidor
- *         content:
- *           application/json:
- *             example:
- *               message: "Error interno al desasignar el feeder"
- *               error: "Detalle del error"
- */
-router.post('/feeder/complete', authenticateDevice, feederController.completeMotorCommand);
-
-//Editar comedero
-/**
- * @swagger
- * /feeder/edit:
- *   post:
- *     summary: Editar comedero
- *     description: Permite editar los datos (nombre y logo) de un comedero siempre que esté asignado al usuario autenticado.
- *     tags:
- *       - Feeder
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           example:
- *             feederId: "8"
- *             feederName: "Comedero de Luna"
- *             feederLogo: "logo8.png"
- *     responses:
- *       200:
- *         description: Comedero editado correctamente
- *         content:
- *           application/json:
- *             example:
- *               message: "Comedero editado correctamente"
- *               informacion:
- *                 userId: "661526d645e78cf30225f9dd"
- *                 feederName: "Comedero de Luna"
- *                 feederLogo: "logo8.png"
- *                 feederId: "8"
- *       400:
- *         description: Error de validación en los campos requeridos
- *         content:
- *           application/json:
- *             examples:
- *               sinFeederId:
- *                 summary: Falta el feederId
- *                 value:
- *                   message: "El campo 'feederId' es requerido y debe ser un string válido."
- *               sinFeederName:
- *                 summary: Falta el nombre
- *                 value:
- *                   message: "El campo 'feederName' es requerido y debe ser un string válido."
- *               sinFeederLogo:
- *                 summary: Falta el logo
- *                 value:
- *                   message: "El campo 'feederLogo' es requerido y debe ser un string."
- *       401:
- *         description: Usuario no autenticado
- *         content:
- *           application/json:
- *             example:
- *               message: "No se pudo obtener el usuario autenticado."
- *       403:
- *         description: El comedero está asignado a otro usuario
- *         content:
- *           application/json:
- *             example:
- *               message: "Este comedero esta asignado a otro usuario, no se puede editar."
- *       404:
- *         description: Comedero no encontrado
- *         content:
- *           application/json:
- *             example:
- *               message: "Comedero no encontrado."
- *       500:
- *         description: Error interno del servidor
- *         content:
- *           application/json:
- *             example:
- *               message: "Error interno del servidor"
- *               error: "Detalle del error"
- */
-router.post('/feeder/edit', verifyToken, feederController.editFeeder);
-
-//Obtener estado motor (Solo nodemcu)
-/**
- * @swagger
- * /feeder/motor-state/{feederId}:
- *   get:
- *     summary: Obtener el estado del motor de un comedero (solo para NODEMCU)
- *     description: Este endpoint devuelve el estado del motor de un comedero, pero solo se permite el acceso mediante una API Key válida para NODEMCU.
- *     tags:
- *       - Feeder
- *     parameters:
- *       - name: feederId
- *         in: path
- *         required: true
- *         description: ID único del comedero
- *         schema:
- *           type: string
- *     security:
- *       - apiKeyAuth: []
- *     responses:
- *       200:
- *         description: Estado del motor del comedero obtenido correctamente
- *         content:
- *           application/json:
- *             example:
- *               motorState: true
- *       400:
- *         description: El parámetro `feederId` es obligatorio y no puede estar vacío
- *         content:
- *           application/json:
- *             example:
- *               message: "El parámetro feederId es obligatorio y no puede estar vacío."
- *       401:
- *         description: Falta la API Key en los headers
- *         content:
- *           application/json:
- *             example:
- *               message: "Falta la API Key"
- *       403:
- *         description: API Key inválida
- *         content:
- *           application/json:
- *             example:
- *               message: "API Key inválida"
- *       404:
- *         description: No se encontró el comedero con el ID proporcionado
- *         content:
- *           application/json:
- *             example:
- *               message: "Comedero no encontrado para el usuario especificado."
- *       500:
- *         description: Error interno al intentar obtener el estado del comedero
- *         content:
- *           application/json:
- *             example:
- *               message: "Error al obtener comedero"
- *               error: "Detalle del error"
- */
-router.get('/feeders/motor-state/:feederId', authenticateDevice, feederController.getMotorStatusNodemcu);
-
-//Obtener estado motor
-/**
- * @swagger
- * /feeders/state/{feederId}:
- *   get:
- *     summary: Obtener el estado del motor de un comedero
- *     description: Este endpoint devuelve el estado del motor de un comedero. Se requiere el `feederId` como parámetro en la URL.
- *     tags:
- *       - Feeder
- *     parameters:
- *       - name: feederId
- *         in: path
- *         required: true
- *         description: ID único del comedero
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Estado del motor del comedero obtenido correctamente
- *         content:
- *           application/json:
- *             example:
- *               motorState: true
- *       400:
- *         description: El parámetro `feederId` es obligatorio y no puede estar vacío
- *         content:
- *           application/json:
- *             example:
- *               message: "El parámetro feederId es obligatorio y no puede estar vacío."
- *       404:
- *         description: No se encontró el comedero con el ID proporcionado
- *         content:
- *           application/json:
- *             example:
- *               message: "Comedero no encontrado para el usuario especificado."
- *       500:
- *         description: Error interno al intentar obtener el estado del comedero
- *         content:
- *           application/json:
- *             example:
- *               message: "Error al obtener comedero"
- *               error: "Detalle del error"
- */
-router.get('/feeder/state/:feederId', verifyToken, feederController.getMotorStatus);
-
-//Obtener fechas users
-/**
- * @swagger
- * /feeders/dates/{feederId}:
- *   get:
- *     summary: Obtener las fechas de inicio del motor de un comedero
- *     description: Este endpoint devuelve las fechas de inicio del motor de un comedero, que están almacenadas en el campo `startHours` del comedero. Se requiere el `feederId` como parámetro en la URL.
- *     tags:
- *       - Feeder
- *     parameters:
- *       - name: feederId
- *         in: path
- *         required: true
- *         description: ID único del comedero
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Fechas de inicio del motor obtenidas correctamente
- *         content:
- *           application/json:
- *             example:
- *               dates: ["2025-04-12T08:00:00", "2025-04-13T08:00:00"]
- *       400:
- *         description: El parámetro `feederId` es obligatorio y no puede estar vacío
- *         content:
- *           application/json:
- *             example:
- *               message: "El parámetro feederId es obligatorio y no puede estar vacío."
- *       404:
- *         description: No se encontró el comedero con el ID proporcionado
- *         content:
- *           application/json:
- *             example:
- *               message: "Comedero no encontrado para el usuario especificado."
- *       500:
- *         description: Error interno al intentar obtener las fechas del comedero
- *         content:
- *           application/json:
- *             example:
- *               message: "Error al obtener comedero"
- *               error: "Detalle del error"
- */
-router.get('/feeder/dates/:feederId', verifyToken, feederController.getFechasByFeederId);
-
-//Agregar Hora Comedero
-/**
- * @swagger
- * /feeder/add-hour:
- *   post:
- *     summary: Asignar horas programadas al comedero (versión dinámica)
- *     description: Este endpoint permite asignar nuevas horas de inicio al comedero, asegurándose de que las fechas sean válidas, no repetidas y futuras. Se requiere el `feederId` en la URL y un arreglo de fechas en el cuerpo de la solicitud.
- *     tags:
- *       - Feeder
- *     parameters:
- *       - name: feederId
- *         in: path
- *         required: true
- *         description: ID único del comedero
- *         schema:
- *           type: string
+ *     summary: Solicitar alimentación remota
+ *     description: Crea una orden remota activando motorInfo.motorState y devuelve un commandId. El firmware debe consultar este estado y confirmar la orden mediante /feeder/complete.
+ *     tags: [Feeders]
+ *     security: [{ bearerAuth: [] }]
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
+ *             required: [feederId]
  *             properties:
- *               feederId:
- *                 type: string
- *                 description: ID del comedero
- *               dates:
- *                 type: array
- *                 items:
- *                   type: string
- *                   format: date-time
- *                 description: Fechas a asignar al comedero
- *           example:
- *             feederId: "feeder123"
- *             dates: ["2025-04-12T08:00:00", "2025-04-13T08:00:00"]
+ *               feederId: { type: string, example: ESP8266-001 }
+ *               portions: { type: integer, minimum: 1, example: 1 }
  *     responses:
  *       200:
- *         description: Fechas agregadas correctamente al comedero
+ *         description: Orden creada.
  *         content:
  *           application/json:
- *             example:
- *               message: "Fechas agregadas exitosamente."
- *               dates: ["2025-04-12T08:00:00", "2025-04-13T08:00:00"]
- *       400:
- *         description: Error en el formato o fechas inválidas
+ *             example: { message: Feeder encendido con éxito, commandId: 550e8400-e29b-41d4-a716-446655440000 }
+ *       400: { description: Porciones inválidas o motor ya encendido. }
+ *       401: { description: JWT faltante o inválido. }
+ *       403: { description: Feeder sin asignar o perteneciente a otro usuario. }
+ *       404: { description: Feeder no encontrado. }
+ *       500: { description: Error interno. }
+ */
+router.post('/feeder/start', verifyToken, feederController.startMotor);
+
+/**
+ * @swagger
+ * /feeder/complete:
+ *   post:
+ *     summary: Confirmar finalización de una orden
+ *     description: Endpoint exclusivo del dispositivo. Valida feederId y commandId, apaga la orden activa y no crea un evento anónimo en el historial.
+ *     tags: [Feeders]
+ *     security: [{ deviceCredential: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [feederId, commandId]
+ *             properties:
+ *               feederId: { type: string, example: ESP8266-001 }
+ *               commandId: { type: string, format: uuid }
+ *     responses:
+ *       200: { description: Orden completada o ya completada. }
+ *       400: { description: feederId o commandId faltante. }
+ *       401: { description: Credencial de dispositivo faltante o inválida. }
+ *       404: { description: Feeder no encontrado. }
+ *       409: { description: No existe una orden pendiente o el commandId no coincide. }
+ *       500: { description: Error interno. }
+ */
+router.post('/feeder/complete', authenticateDevice, feederController.completeMotorCommand);
+
+/**
+ * @swagger
+ * /feeder/edit:
+ *   post:
+ *     summary: Editar feeder
+ *     tags: [Feeders]
+ *     security: [{ bearerAuth: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [feederId, feederName, feederLogo]
+ *             properties:
+ *               feederId: { type: string, example: ESP8266-001 }
+ *               feederName: { type: string, example: Comedero Cocina }
+ *               feederLogo: { type: string, example: cat }
+ *     responses:
+ *       200: { description: Feeder editado correctamente. }
+ *       400: { description: Campos requeridos inválidos. }
+ *       401: { description: Usuario no autenticado. }
+ *       403: { description: Feeder sin asignar o perteneciente a otro usuario. }
+ *       404: { description: Feeder no encontrado. }
+ *       500: { description: Error interno. }
+ */
+router.post('/feeder/edit', verifyToken, feederController.editFeeder);
+
+/**
+ * @swagger
+ * /feeders/motor-state/{feederId}:
+ *   get:
+ *     summary: Consultar orden del motor desde el dispositivo
+ *     description: El feederId se toma de la credencial del dispositivo; el parámetro de ruta se mantiene por compatibilidad y es validado por el middleware.
+ *     tags: [Feeders]
+ *     security: [{ deviceCredential: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: feederId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Estado remoto y metadatos de la orden.
  *         content:
  *           application/json:
- *             example:
- *               message: "Se debe enviar un arreglo de fechas."
- *       404:
- *         description: No se encontró el comedero para el usuario
+ *             example: { motorState: true, portions: 1, commandId: '550e8400-e29b-41d4-a716-446655440000', configRevision: 3 }
+ *       400: { description: feederId inválido. }
+ *       401: { description: Credencial de dispositivo faltante o inválida. }
+ *       404: { description: Feeder no encontrado. }
+ *       500: { description: Error interno. }
+ */
+router.get('/feeders/motor-state/:feederId', authenticateDevice, feederController.getMotorStatusNodemcu);
+
+/**
+ * @swagger
+ * /feeder/state/{feederId}:
+ *   get:
+ *     summary: Obtener estado del motor
+ *     tags: [Feeders]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: feederId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Estado actual.
  *         content:
  *           application/json:
- *             example:
- *               message: "Comedero no encontrado para el usuario."
- *       500:
- *         description: Error interno al intentar agregar fechas al comedero
+ *             example: { motorState: false }
+ *       400: { description: feederId inválido. }
+ *       401: { description: Usuario no autenticado. }
+ *       404: { description: Feeder no encontrado para el usuario. }
+ *       500: { description: Error interno. }
+ */
+router.get('/feeder/state/:feederId', verifyToken, feederController.getMotorStatus);
+
+/**
+ * @swagger
+ * /feeder/dates/{feederId}:
+ *   get:
+ *     summary: Obtener horarios legacy del feeder
+ *     description: Devuelve motorInfo.startHours. Esta ruta pertenece al mecanismo de horarios anterior; la configuración vigente usa configuration.schedules.
+ *     tags: [Feeders]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: feederId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Fechas programadas.
  *         content:
  *           application/json:
- *             example:
- *               message: "Error al agregar fechas."
- *               error: "Detalle del error"
+ *             example: { dates: ['2026-09-01T08:00:00.000Z'] }
+ *       400: { description: feederId inválido. }
+ *       401: { description: Usuario no autenticado. }
+ *       404: { description: Feeder no encontrado para el usuario. }
+ *       500: { description: Error interno. }
+ */
+router.get('/feeder/dates/:feederId', verifyToken, feederController.getFechasByFeederId);
+
+/**
+ * @swagger
+ * /feeder/add-hour:
+ *   post:
+ *     summary: Agregar horarios legacy
+ *     description: Agrega fechas ISO-8601 futuras y no duplicadas a motorInfo.startHours. Para la configuración actual del firmware usar PUT /feeders/{feederId}/config.
+ *     tags: [Feeders]
+ *     security: [{ bearerAuth: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [feederId, dates]
+ *             properties:
+ *               feederId: { type: string, example: ESP8266-001 }
+ *               dates:
+ *                 type: array
+ *                 items: { type: string, format: date-time }
+ *                 example: ['2026-09-01T08:00:00.000Z']
+ *     responses:
+ *       200: { description: Fechas agregadas. }
+ *       400: { description: Datos inválidos o ninguna fecha válida para agregar. }
+ *       401: { description: Usuario no autenticado. }
+ *       404: { description: Feeder no encontrado para el usuario. }
+ *       500: { description: Error interno. }
  */
 router.post('/feeder/add-hour', verifyToken, feederController.addStartHours);
 
-//Delete feeder
+/**
+ * @swagger
+ * /feeder/{feederId}:
+ *   delete:
+ *     summary: Eliminar feeder
+ *     description: Elimina el documento por feederId. Actualmente requiere JWT pero el controlador no valida que el feeder pertenezca al usuario.
+ *     tags: [Feeders]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: feederId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Feeder eliminado. }
+ *       400: { description: feederId inválido. }
+ *       401: { description: Usuario no autenticado. }
+ *       404: { description: Feeder no encontrado o ya eliminado. }
+ *       500: { description: Error interno. }
+ */
 router.delete('/feeder/:feederId', verifyToken, feederController.deleteFeeder);
 
-//Obtener historial de ejecs
+/**
+ * @swagger
+ * /feeder/{feederId}/historial:
+ *   get:
+ *     summary: Obtener historial de alimentación
+ *     description: Devuelve el historial transformado para la interfaz, ordenado del más reciente al más antiguo.
+ *     tags: [Feeders]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: feederId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Historial formateado.
+ *         content:
+ *           application/json:
+ *             example:
+ *               - { id: '1', fecha: 'lun, 31 ago', hora: '13:20', cantidad: '20g', accion: 'Comedero activado' }
+ *       401: { description: Usuario no autenticado. }
+ *       404: { description: Feeder no encontrado para el usuario. }
+ *       500: { description: Error interno. }
+ */
 router.get('/feeder/:feederId/historial', verifyToken, feederController.getFeederHistory);
 
-//Agrega historial que se mantiene en la persinstencia en modo offline
-router.post('/feeders/history',authenticateDevice,feederController.syncFeedingHistory);
+/**
+ * @swagger
+ * /feeders/history:
+ *   post:
+ *     summary: Sincronizar un evento de alimentación
+ *     description: Endpoint del dispositivo para subir un evento persistido localmente. Usa eventId para garantizar idempotencia.
+ *     tags: [Feeders]
+ *     security: [{ deviceCredential: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [eventId, feederId, timestamp, portions, source]
+ *             properties:
+ *               eventId: { type: string, example: evt-000001 }
+ *               feederId: { type: string, example: ESP8266-001 }
+ *               timestamp: { type: integer, format: int64, description: Unix timestamp en segundos, example: 1788193200 }
+ *               portions: { type: integer, minimum: 1, example: 1 }
+ *               source: { type: string, enum: [physical, scheduled, remote, legacy], example: remote }
+ *     responses:
+ *       200:
+ *         description: Evento sincronizado o ya existente.
+ *       400: { description: Datos de alimentación incompletos. }
+ *       401: { description: Credencial de dispositivo faltante o inválida. }
+ *       404: { description: Feeder no encontrado. }
+ *       500: { description: Error interno. }
+ */
+router.post('/feeders/history', authenticateDevice, feederController.syncFeedingHistory);
 
-//Comunica el estado del dispositivo hacia el backend
-router.post("/feeders/heartbeat", authenticateDevice,feederController.heartbeat);
+/**
+ * @swagger
+ * /feeders/heartbeat:
+ *   post:
+ *     summary: Registrar heartbeat del dispositivo
+ *     description: Actualiza lastConection del feeder autenticado.
+ *     tags: [Feeders]
+ *     security: [{ deviceCredential: [] }]
+ *     responses:
+ *       200:
+ *         description: Heartbeat recibido.
+ *         content:
+ *           application/json:
+ *             example: { message: Heartbeat recibido }
+ *       401: { description: Credencial de dispositivo faltante o inválida. }
+ *       404: { description: Feeder no encontrado. }
+ *       500: { description: Error interno. }
+ */
+router.post('/feeders/heartbeat', authenticateDevice, feederController.heartbeat);
 
-router.get('/feeders/config/:feederId',authenticateDevice,feederController.getRemoteConfiguration);
+/**
+ * @swagger
+ * /feeders/config/{feederId}:
+ *   get:
+ *     summary: Obtener configuración remota
+ *     description: Endpoint del dispositivo. Devuelve la revisión, stepsPerFeed y exactamente cinco schedules. Si no existe configuración persistida se entrega la configuración por defecto.
+ *     tags: [Feeders]
+ *     security: [{ deviceCredential: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: feederId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Configuración remota.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/FeederConfiguration' }
+ *       400: { description: feederId inválido. }
+ *       401: { description: Credencial de dispositivo faltante o inválida. }
+ *       404: { description: Feeder no encontrado. }
+ *       500: { description: Error interno. }
+ */
+router.get('/feeders/config/:feederId', authenticateDevice, feederController.getRemoteConfiguration);
 
-//Edita configuracion defeeder
-router.put('/feeders/:feederId/config',verifyToken,feederController.updateFeederConfiguration);
+/**
+ * @swagger
+ * /feeders/{feederId}/config:
+ *   put:
+ *     summary: Actualizar configuración del feeder
+ *     description: Reemplaza de forma completa la configuración remota. El body debe contener exactamente cinco schedules. Si no hay cambios, conserva la revisión actual; si hay cambios, incrementa revision en uno.
+ *     tags: [Feeders]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: feederId
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [stepsPerFeed, schedules]
+ *             properties:
+ *               stepsPerFeed: { type: integer, minimum: 1, maximum: 10240, example: 2048 }
+ *               schedules:
+ *                 type: array
+ *                 minItems: 5
+ *                 maxItems: 5
+ *                 items: { $ref: '#/components/schemas/Schedule' }
+ *     responses:
+ *       200:
+ *         description: Configuración actualizada o sin cambios.
+ *         content:
+ *           application/json:
+ *             example:
+ *               message: Configuración actualizada correctamente.
+ *               revision: 2
+ *               configuration:
+ *                 revision: 2
+ *                 stepsPerFeed: 2048
+ *                 schedules: []
+ *       400: { description: Configuración inválida. }
+ *       401: { description: Usuario no autenticado. }
+ *       404: { description: Feeder no encontrado. }
+ *       500: { description: Error interno. }
+ */
+router.put('/feeders/:feederId/config', verifyToken, feederController.updateFeederConfiguration);
 
 module.exports = router;
