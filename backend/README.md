@@ -1,332 +1,656 @@
-# Cat Feeder — Backend
+# CatFeeder — Backend
 
-API REST para un comedero automático de mascotas. Centraliza usuarios, la
-asignación de cada dispositivo, el estado del motor, los horarios de comida y
-el historial de activaciones. Está pensada para que convivan dos clientes:
+API REST central del sistema **CatFeeder**. Gestiona usuarios, dispositivos,
+pairing, configuración remota, órdenes de alimentación, conectividad e
+historial.
 
-- una aplicación de usuario que se autentica con JWT;
-- un NodeMCU/ESP que se identifica mediante una API key compartida.
+El backend está diseñado para convivir con dos clientes:
 
-> **Estado del proyecto:** este README documenta el comportamiento del código
-> actual, incluyendo sus limitaciones. Antes de reutilizarlo en producción,
-> revisar la sección [Aspectos a corregir](#aspectos-a-corregir-antes-de-producción).
+- **Aplicación web/móvil:** autenticada mediante JWT.
+- **Firmware ESP8266/NodeMCU:** autenticado mediante una credencial individual
+  de dispositivo (`x-device-credential`).
+
+> **Fuente de verdad:** el comportamiento implementado en `routes/`,
+> controladores, middlewares, servicios y modelos. Swagger se genera a partir
+> de las anotaciones de las rutas y se sirve en `/api-docs`.
 
 ## Índice
 
-- [Arquitectura y flujo](#arquitectura-y-flujo)
+- [Arquitectura](#arquitectura)
 - [Tecnologías](#tecnologías)
-- [Inicio rápido](#inicio-rápido)
-- [Configuración](#configuración)
-- [Modelo de datos](#modelo-de-datos)
+- [Ejecución](#ejecución)
+- [Variables de entorno](#variables-de-entorno)
 - [Autenticación](#autenticación)
+- [Ciclo de vida del dispositivo](#ciclo-de-vida-del-dispositivo)
 - [Referencia de la API](#referencia-de-la-api)
-- [Integración del dispositivo](#integración-del-dispositivo)
-- [Programación e historial](#programación-e-historial)
-- [Mapa del código](#mapa-del-código)
-- [Aspectos a corregir antes de producción](#aspectos-a-corregir-antes-de-producción)
-- [Guía para agentes de IA](#guía-para-agentes-de-ia)
+- [Configuración remota](#configuración-remota)
+- [Motor y alimentación](#motor-y-alimentación)
+- [Historial](#historial)
+- [Modelo de datos](#modelo-de-datos)
+- [Integración con el firmware](#integración-con-el-firmware)
+- [Swagger](#swagger)
+- [Estructura](#estructura)
+- [Notas de implementación](#notas-de-implementación)
 
-## Arquitectura y flujo
+## Arquitectura
 
 ```text
-App móvil/web ── Bearer JWT ──┐
-                              │
-                              ▼
-                         Express API ─── MongoDB
-                              ▲
-                              │
-NodeMCU/ESP ─ x-api-key ──────┘
+                    ┌─────────────────────┐
+                    │    MongoDB / Mongoose│
+                    └──────────▲──────────┘
+                               │
+                    ┌──────────┴──────────┐
+                    │    Express API      │
+                    │    CatFeeder        │
+                    └───────▲───────▲─────┘
+                            │       │
+              Bearer JWT    │       │ x-device-credential
+                            │       │
+                    ┌───────┘       └────────┐
+                    │                        │
+              ┌─────┴─────┐           ┌─────┴─────┐
+              │ Frontend  │           │ ESP8266   │
+              │ Web/Móvil │           │ NodeMCU   │
+              └───────────┘           └───────────┘
 ```
 
-1. El dispositivo se registra con un `feederId` único.
-2. Un usuario crea su cuenta, inicia sesión y recibe un JWT de una hora.
-3. El usuario reclama (`assign`) un comedero disponible y puede cambiar su
-   nombre, icono y horarios.
-4. La aplicación solicita activar o detener el motor; el dispositivo consulta
-   el estado del motor y actúa en consecuencia.
-5. El dispositivo puede informar una activación para añadirla al historial.
+El backend no mantiene una conexión persistente con el dispositivo para enviar
+órdenes. La interacción del firmware con el backend se basa en consultas y
+confirmaciones HTTP.
 
-La API no tiene prefijo global: las rutas son, por ejemplo, `/login` y
-`/feeders/my`. La documentación Swagger se sirve en `/api-docs`.
+Flujo principal:
+
+1. Se crea un dispositivo en fábrica mediante `/admin/devices`.
+2. El backend genera una credencial individual para el dispositivo y
+   credenciales de pairing.
+3. El usuario inicia sesión y obtiene un JWT.
+4. El usuario vincula el dispositivo mediante un `pairingToken` o
+   `pairingCode`.
+5. El usuario puede consultar y modificar el comedero asociado.
+6. Las órdenes de alimentación se persisten en el backend.
+7. El firmware consulta el estado remoto, ejecuta la orden y confirma su
+   finalización.
+8. Los eventos de alimentación pueden sincronizarse mediante `eventId` para
+   evitar duplicados.
 
 ## Tecnologías
 
-- Node.js con Express 5.
-- MongoDB con Mongoose.
-- JWT (`jsonwebtoken`) y contraseñas con hash bcrypt.
-- CORS habilitado para todos los orígenes.
-- Luxon para la zona horaria del job programado.
-- Swagger UI generado desde anotaciones en `routes/`.
-- EmailJS vía Axios para recuperación de contraseña.
+- Node.js
+- Express 5
+- MongoDB / Mongoose
+- JSON Web Token (`jsonwebtoken`)
+- bcryptjs
+- Axios
+- Luxon
+- Swagger JSDoc / Swagger UI
+- CORS
+- EmailJS para recuperación de contraseña
 
-## Inicio rápido
+## Ejecución
 
 ### Requisitos
 
-- Node.js (se recomienda una versión LTS actual).
-- Una instancia accesible de MongoDB.
+- Node.js LTS
+- MongoDB accesible desde el backend
 
-### Instalación y ejecución
+### Instalación
 
 ```bash
 npm install
+```
+
+### Ejecución
+
+```bash
 node index.js
 ```
 
-No hay un script `start` o `dev` definido actualmente en `package.json`. El
-servidor usa `PORT` o, si no existe, el puerto `5000`.
+El servidor utiliza `PORT` si está definido y, de lo contrario, `5000`.
 
-Al iniciarse, primero intenta conectar a MongoDB. Si falla la conexión, el
-proceso termina. Con una ejecución local correcta, la documentación queda en:
+La documentación Swagger queda disponible en:
 
 ```text
 http://localhost:5000/api-docs
 ```
 
-## Configuración
+En Render, utilizar la URL pública correspondiente al servicio desplegado.
 
-Crear un archivo `.env` en la raíz del backend. Nunca subirlo al repositorio.
+## Variables de entorno
+
+Utilizar `.env.example` como referencia y **no versionar secretos reales**.
 
 ```dotenv
-# Obligatorias para el servidor
-MONGO_URI=mongodb://127.0.0.1:27017/cat-feeder
-JWT_SECRET=generar-un-secreto-largo-y-aleatorio
-NODEMCU_API_KEY=clave-compartida-con-el-dispositivo
+MONGO_URI=mongodb+srv://<usuario>:<password>@<cluster>/<database>?retryWrites=true&w=majority
+JWT_SECRET=<secreto-largo-y-aleatorio>
 PORT=5000
+FRONTEND_URL=http://localhost:5173
 
-# Necesarias únicamente para recuperar contraseñas por EmailJS
 EMAILJS_SERVICE_ID=service_xxx
 EMAILJS_TEMPLATE_ID=template_xxx
 EMAILJS_USER_ID=public_key_xxx
-API_URL=http://localhost:3000/reset-password
 ```
 
-`API_URL` debe ser la URL base del frontend que muestra el formulario de nueva
-contraseña; el backend agrega `/<token>` al final. Aunque el `.env` existente
-solo contiene las primeras cuatro variables, el controlador de recuperación
-también necesita las variables de EmailJS y `API_URL`.
-
-## Modelo de datos
-
-### `User`
-
-| Campo | Tipo | Uso |
-| --- | --- | --- |
-| `name`, `surname` | String | Datos obligatorios de perfil. |
-| `email` | String único | Identificador de inicio de sesión. |
-| `password` | String | Hash bcrypt; nunca se persiste la contraseña plana. |
-| `emailReceiver` | Boolean | Preferencia opcional. |
-| `resetPasswordToken`, `resetPasswordExpires` | String / Date | Recuperación de contraseña, válida por una hora. |
-
-### `Feeder`
-
-| Campo | Tipo | Uso |
-| --- | --- | --- |
-| `feederId` | String único | Identificador físico/lógico enviado por el dispositivo. |
-| `userId` | String o `null` | Usuario propietario. Actualmente no es una referencia Mongoose. |
-| `feederName`, `feederLogo` | String | Personalización que define el usuario. |
-| `feederAsign` | Boolean | Indica si fue asignado. La grafía es parte del esquema actual. |
-| `feederQuantity` | Number | Cantidad/medición reportada; no hay endpoint que hoy la actualice. |
-| `lastConection` | Date | Última conexión, con esa grafía en el esquema. |
-| `motorInfo.startHours` | `Date[]` | Fechas y horas futuras programadas. |
-| `motorInfo.motorState` | Boolean | Orden persistida que consulta el dispositivo. |
-| `feederHistory` | Array | Eventos `{ fecha, accion }`, donde `accion` es `encendido` o `apagado`. |
-
-También existe el modelo `FeederLog` (`feederId`, `timestamp`, `amount`), pero
-no es utilizado por las rutas ni los controladores actuales.
+`NODEMCU_API_KEY` pertenece al diseño anterior de autenticación compartida.
+Los endpoints actuales de dispositivo utilizan la credencial individual
+`x-device-credential` generada durante el alta de fábrica.
 
 ## Autenticación
 
-### JWT para app de usuario
+### Usuario — JWT
 
-Después de `POST /login`, enviar el token en todas las rutas protegidas:
+`POST /login` devuelve:
+
+```json
+{
+  "token": "<jwt>"
+}
+```
+
+Las rutas protegidas por usuario reciben:
 
 ```http
 Authorization: Bearer <token>
 ```
 
-El payload contiene `_id` del usuario y el token vence en una hora. El
-middleware acepta también un token sin el prefijo `Bearer`.
+El JWT se firma con `JWT_SECRET` y tiene una vigencia de una hora.
 
-### API key para dispositivo
+### Dispositivo — credencial individual
 
-Las rutas de firmware verifican exactamente este encabezado:
+Los endpoints protegidos por firmware utilizan:
 
 ```http
-x-api-key: <NODEMCU_API_KEY>
+x-device-credential: <deviceCredential>
 ```
 
-No sustituir una forma de autenticación por la otra: un JWT no autoriza al
-dispositivo y la API key no autoriza las acciones de un usuario.
+La credencial se genera durante el alta de fábrica y el backend almacena su
+hash. El middleware recupera el hash y compara la credencial recibida de forma
+segura.
+
+### No mezclar mecanismos
+
+```text
+Frontend ── JWT ──────────────────> endpoints de usuario
+Firmware ── x-device-credential ──> endpoints de dispositivo
+```
+
+Una credencial de dispositivo no sustituye al JWT y un JWT no sustituye la
+credencial del dispositivo.
+
+## Ciclo de vida del dispositivo
+
+### 1. Alta de fábrica
+
+`POST /admin/devices` crea un feeder no asignado y genera las credenciales
+necesarias para instalarlo.
+
+Request:
+
+```json
+{
+  "feederId": "esp8266-001",
+  "feederName": "CatFeeder"
+}
+```
+
+La operación genera una credencial individual de dispositivo y credenciales de
+pairing. Los valores sensibles deben entregarse de forma segura durante la
+instalación y no deben registrarse en logs.
+
+### 2. Pairing
+
+El usuario autenticado puede vincular un dispositivo utilizando exactamente una
+de estas credenciales:
+
+```json
+{
+  "pairingToken": "<token>"
+}
+```
+
+o:
+
+```json
+{
+  "pairingCode": "AB2CD3EF"
+}
+```
+
+El token es hexadecimal de 64 caracteres. El código tiene 8 caracteres y se
+normaliza a mayúsculas.
+
+Una vez consumido el pairing:
+
+- el dispositivo queda asignado al usuario;
+- las credenciales de pairing quedan invalidadas;
+- no pueden reutilizarse para otra vinculación.
+
+El endpoint de pairing está protegido contra intentos repetidos: permite hasta
+10 intentos por usuario/IP cada 15 minutos y devuelve `429` con `Retry-After`
+cuando se supera el límite.
+
+### 3. Desvinculación
+
+`DELETE /devices/{feederId}/pair` permite al propietario desvincular el
+comedero.
+
+Al desvincular:
+
+- `userId` vuelve a `null`;
+- `feederAsign` vuelve a `false`;
+- se generan nuevas credenciales de pairing.
+
+La credencial individual del dispositivo no se regenera como parte del pairing.
 
 ## Referencia de la API
 
-Los cuerpos se envían como JSON. Las rutas marcadas **JWT** requieren
-`Authorization`; las marcadas **dispositivo** requieren `x-api-key`.
+Todos los cuerpos utilizan `Content-Type: application/json`.
 
-### Usuarios
+### Autenticación y cuenta
 
-| Método y ruta | Aut. | Body / resultado |
-| --- | --- | --- |
-| `POST /register` | Pública | `{ email, password, name, surname, emailReceiver? }`. Contraseña: mínimo 8 caracteres y una mayúscula. |
-| `POST /login` | Pública | `{ email, password }` → `{ token }`. |
-| `POST /forgot-password` | Pública | `{ email }`; genera un token de una hora y usa EmailJS. |
-| `POST /reset-password` | Pública | `{ token, password }`; restablece la contraseña. |
+| Método | Ruta | Auth | Descripción |
+| --- | --- | --- | --- |
+| `POST` | `/register` | Pública | Registra un usuario. |
+| `POST` | `/login` | Pública | Autentica un usuario y devuelve un JWT. |
+| `POST` | `/forgot-password` | Pública | Genera un token de recuperación y solicita el envío por email. |
+| `POST` | `/reset-password` | Pública | Restablece la contraseña usando un token vigente. |
 
-Ejemplo de registro:
+### Dispositivos
 
-```bash
-curl -X POST http://localhost:5000/register \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Ada","surname":"Lovelace","email":"ada@example.com","password":"ClaveSegura1"}'
-```
+| Método | Ruta | Auth | Descripción |
+| --- | --- | --- | --- |
+| `POST` | `/admin/devices` | Administración | Alta de un dispositivo en fábrica. |
+| `POST` | `/devices/pair` | JWT | Vincula un dispositivo mediante token o código. |
+| `DELETE` | `/devices/:feederId/pair` | JWT | Desvincula un dispositivo propio y genera nuevas credenciales de pairing. |
 
-### Comederos y dispositivo
+### Feeders — usuario
 
-| Método y ruta | Aut. | Propósito |
-| --- | --- | --- |
-| `POST /feeders/register` | Dispositivo | Registra un comedero. Body: `{ feederId, name }`; el esquema no persiste `name`, sino que luego se usa `feederName`. |
-| `GET /feeders/global/:feederId` | Dispositivo | Devuelve `feederQuantity`, `feederName`, `feederLogo` y `lastConection`. Puede marcar el motor si la hora UTC coincide con un horario. |
-| `GET /feeder/motor-state/:feederId` | Dispositivo | Devuelve `{ motorState: boolean }`; es el endpoint de consulta de la orden del motor. |
-| `POST /feeder/history/add` | Dispositivo | Body: `{ feederId }`; añade un evento de encendido y agenda uno de apagado 40 segundos después. |
+| Método | Ruta | Auth | Descripción |
+| --- | --- | --- | --- |
+| `GET` | `/feeders` | JWT | Lista feeders. |
+| `GET` | `/feeders/my` | JWT | Lista feeders del usuario autenticado. |
+| `GET` | `/feeders/:feederId` | JWT | Obtiene un feeder propio. |
+| `POST` | `/feeder/edit` | JWT | Actualiza nombre e icono de un feeder propio. |
+| `GET` | `/feeder/state/:feederId` | JWT | Consulta el estado del motor de un feeder propio. |
+| `GET` | `/feeder/dates/:feederId` | JWT | Obtiene la programación del feeder. |
+| `POST` | `/feeder/add-hour` | JWT | Agrega fechas futuras de alimentación. |
+| `GET` | `/feeder/:feederId/historial` | JWT | Obtiene el historial del feeder. |
+| `DELETE` | `/feeders/:feederId` | JWT | Elimina un feeder. |
+| `POST` | `/feeder/start` | JWT | Genera una orden remota de alimentación. |
 
-### Gestión desde la aplicación
+### Feeders — dispositivo
 
-| Método y ruta | Propósito |
-| --- | --- |
-| `GET /feeders` | Lista todos los comederos. **JWT**, sin restricción de propietario ni rol administrador. |
-| `GET /feeders/my` | Lista los comederos del usuario autenticado. **JWT**. |
-| `GET /feeders/:feederId` | Obtiene un comedero propio. **JWT**. |
-| `POST /feeder/assign` | Reclama un comedero: `{ feederId, feederName, feederLogo }`. **JWT**. |
-| `POST /feeder/unassign` | Libera un comedero propio: `{ feederId }`. **JWT**. |
-| `POST /feeder/edit` | Actualiza nombre e icono de uno propio: `{ feederId, feederName, feederLogo }`. **JWT**. |
-| `GET /feeder/state/:feederId` | Obtiene `{ motorState }` de un comedero propio. **JWT**. |
-| `POST /feeder/stop` | Solicita detener el motor de un comedero propio: `{ feederId }`. **JWT**. |
-| `GET /feeder/dates/:feederId` | Devuelve `{ dates }` para un comedero propio. **JWT**. |
-| `POST /feeder/add-hour` | Añade fechas futuras no repetidas: `{ feederId, dates: [ISO-8601, ...] }`. **JWT**. |
-| `GET /feeder/:feederId/historial` | Devuelve el historial formateado para UI, más reciente primero. **JWT**. |
-| `DELETE /feeders/:feederId` | Elimina por ID. **JWT**, pero no valida propiedad; usar solo en desarrollo. |
-| `POST /feeder/start` | Está declarada pero su controlador no implementa respuesta ni modificación: no usar. |
+| Método | Ruta | Auth | Descripción |
+| --- | --- | --- | --- |
+| `GET` | `/feeders/global/:feederId` | Device Credential | Obtiene información global y actualiza la conexión del dispositivo. |
+| `GET` | `/feeder/motor-state/:feederId` | Device Credential | Obtiene estado del motor, porciones, `commandId` y revisión de configuración. |
+| `POST` | `/feeder/complete` | Device Credential | Confirma la finalización de una orden mediante `commandId`. |
+| `POST` | `/feeders/history` | Device Credential | Sincroniza un evento mediante `eventId`. |
+| `POST` | `/feeders/heartbeat` | Device Credential | Actualiza la última conexión del dispositivo. |
+| `GET` | `/feeders/config/:feederId` | Device Credential | Obtiene la configuración remota. |
 
-Ejemplo de asignación:
+## Configuración remota
 
-```bash
-curl -X POST http://localhost:5000/feeder/assign \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{"feederId":"esp32-001","feederName":"Comedero cocina","feederLogo":"cat"}'
-```
-
-## Integración del dispositivo
-
-Secuencia mínima para un firmware compatible:
-
-1. En el primer arranque, hacer `POST /feeders/register` con la API key y un
-   `feederId` persistente (idealmente derivado de MAC o chip ID).
-2. En un intervalo regular, llamar a
-   `GET /feeder/motor-state/:feederId` con la misma API key.
-3. Si `motorState` es `true`, accionar el motor según la seguridad física
-   requerida y reportar el ciclo con `POST /feeder/history/add`.
-4. Opcionalmente consultar `GET /feeders/global/:feederId` para presentar en
-   el dispositivo el nombre, icono o cantidad.
-
-El backend no manda comandos al dispositivo: el modelo es *polling*. Ajustar
-el intervalo de consulta en firmware según la latencia aceptable y el consumo
-de red. La API key actual es compartida para todos los dispositivos; si se
-necesita revocación individual, migrar a credenciales por `feederId`.
-
-## Programación e historial
-
-`POST /feeder/add-hour` recibe fechas ISO-8601 completas, las guarda como
-`Date` y rechaza valores pasados o ya existentes. No existe una ruta para
-eliminar o editar horarios individualmente.
-
-`jobs/motorStatusJob.js` se carga al importar el controlador de feeders e
-intenta revisar horarios cada cinco segundos usando la zona
-`America/Argentina/Buenos_Aires`. Además, `GET /feeders/global/:feederId`
-intenta activar el estado por coincidencia de minuto en UTC. Son dos
-mecanismos distintos; antes de extender la agenda conviene consolidarlos en
-uno solo y definir la zona horaria como configuración.
-
-El historial que recibe la aplicación se transforma a esta forma:
+La configuración remota utiliza una **revisión incremental**.
 
 ```json
-[
-  {
-    "id": "1",
-    "fecha": "mié, 14 may",
-    "hora": "08:30",
-    "cantidad": "20g",
-    "accion": "Comedero activado"
-  }
-]
+{
+  "revision": 3,
+  "stepsPerFeed": 2048,
+  "schedules": [
+    {
+      "hour": 8,
+      "minute": 30,
+      "portions": 1,
+      "enabled": true
+    }
+  ]
+}
 ```
 
-La cantidad `20g` está fija en el controlador: no surge de un sensor ni de
-`FeederLog`.
+La configuración válida contiene exactamente **5 schedules**.
 
-## Mapa del código
+| Campo | Restricción |
+| --- | --- |
+| `revision` | Entero >= 1. |
+| `stepsPerFeed` | Entero entre 1 y 10240. |
+| `schedules` | Exactamente 5 elementos. |
+| `hour` | Entero 0–23. |
+| `minute` | Entero 0–59. |
+| `portions` | Entero 1–5. |
+| `enabled` | Boolean. |
+
+`PUT /feeders/:feederId/config` compara la configuración recibida con la
+actual. Si no hay cambios, conserva la revisión; si hay cambios, incrementa la
+revisión en uno.
+
+El firmware puede utilizar `revision` para detectar que debe sincronizar una
+nueva configuración.
+
+## Motor y alimentación
+
+### Crear una orden
+
+`POST /feeder/start` recibe:
+
+```json
+{
+  "feederId": "esp8266-001",
+  "portions": 2
+}
+```
+
+`portions` es opcional y su valor por defecto es `1`.
+
+Una orden aceptada queda identificada mediante un `commandId` único. El
+backend persiste el estado necesario para que el firmware pueda detectarla.
+
+### Consulta desde el firmware
+
+El dispositivo consulta:
 
 ```text
-index.js                         Arranque de Express, MongoDB, CORS y Swagger
-configs/db.js                    Conexión Mongoose mediante MONGO_URI
-routes/authRoutes.js             Rutas de cuenta y sesión
-routes/feederRoutes.js           Rutas de usuario y firmware
-controllers/authController.js    Registro, login y recuperación de contraseña
-controllers/feederController.js  Lógica de propiedad, motor, agenda e historial
-middlewares/authMiddleware.js    Verificación del JWT
-models/User.js                   Esquema de usuario
-models/Feeder.js                 Esquema principal del comedero
-models/FeederLog.js              Esquema no integrado aún
-jobs/motorStatusJob.js           Revisión periódica de horarios
+GET /feeder/motor-state/:feederId
 ```
 
-## Aspectos a corregir antes de producción
+La respuesta incluye los datos necesarios para ejecutar la orden, por ejemplo:
 
-Estos puntos son observaciones del código actual, no funcionalidades ya
-resueltas:
+```json
+{
+  "motorState": true,
+  "portions": 2,
+  "commandId": "<uuid>",
+  "configRevision": 3
+}
+```
 
-1. **Arranque manual:** agregar scripts `start`, `dev` y tests al
-   `package.json`.
-2. **Motor:** implementar `startMotor`; hoy `POST /feeder/start` queda sin
-   respuesta. Corregir además mensajes, duración y lógica de `stopMotor`.
-3. **Scheduler:** el job inserta valores incompatibles con el esquema de
-   `feederHistory` y mezcla zonas horarias/formatos. Debe registrar
-   `{ fecha, accion }`, evitar duplicados correctamente y tener pruebas.
-4. **Consistencia de campos:** unificar `lastConection` con los usos de
-   `lastConexion` (estos últimos no corresponden al esquema) y usar
-   `feederName` al registrar en lugar de `name`.
-5. **Seguridad:** restringir `GET /feeders` y `DELETE /feeders/:feederId` a un
-   rol administrador o al propietario; definir CORS por entorno; no registrar
-   secretos, tokens o enlaces de recuperación en consola.
-6. **Contraseñas:** aplicar las mismas reglas de complejidad en
-   `reset-password` que en `register`.
-7. **Errores y validación:** centralizar códigos/respuestas, validar todos los
-   cuerpos con un esquema y evitar devolver objetos de error internos.
-8. **Diseño de datos:** convertir `userId` a `ObjectId` con `ref: 'User'`;
-   conectar o eliminar `FeederLog`; implementar persistencia de cantidad si
-   el producto la necesita.
-9. **Operación:** agregar health check, logs estructurados, rate limiting,
-   HTTPS y rotación de credenciales por dispositivo.
+### Confirmación
 
-## Guía para agentes de IA
+Una vez finalizada la alimentación, el firmware llama:
 
-Al modificar o reutilizar este backend, respetar estas decisiones y límites:
+```text
+POST /feeder/complete
+```
 
-- Tomar las rutas reales de `routes/` y los controladores como fuente de
-  verdad; las anotaciones Swagger contienen partes desactualizadas.
-- No asumir que un endpoint de motor acciona hardware: la API solo persiste un
-  estado que el firmware consulta por *polling*.
-- Mantener separadas la autenticación de usuario (JWT) y de dispositivo
-  (`x-api-key`). No exponer `NODEMCU_API_KEY` a clientes web/móviles.
-- Las fechas de `startHours` son instantes `Date`, no horarios recurrentes. Si
-  se quieren comidas diarias, diseñar explícitamente recurrencia, zona horaria
-  y política de reintentos.
-- Verificar propiedad del comedero en cualquier endpoint nuevo que modifique o
-  exponga datos de usuario.
-- No alterar ni imprimir `.env`; crear un `.env.example` sin secretos si se
-  publica el repositorio.
-- Antes de cambiar el scheduler o la comunicación con el firmware, probar el
-  ciclo completo: alta del dispositivo → asignación → orden de motor → polling
-  → historial.
+con:
 
+```json
+{
+  "feederId": "esp8266-001",
+  "commandId": "<uuid>"
+}
+```
+
+El backend valida el `commandId` antes de marcar la orden como completada.
+Esto permite que el firmware reintente una confirmación sin generar una nueva
+orden.
+
+## Historial
+
+Los eventos sincronizados por el firmware utilizan un `eventId` estable para
+permitir operaciones idempotentes.
+
+Ejemplo conceptual:
+
+```json
+{
+  "eventId": "evt-000001",
+  "feederId": "esp8266-001",
+  "timestamp": 1750000000,
+  "portions": 1,
+  "source": "scheduled"
+}
+```
+
+Fuentes soportadas:
+
+- `physical`
+- `scheduled`
+- `remote`
+- `legacy`
+
+El timestamp de sincronización del firmware se interpreta como Unix time en
+segundos.
+
+Si el `eventId` ya fue procesado, el backend evita crear un duplicado.
+
+## Heartbeat
+
+El firmware puede informar periódicamente su conectividad mediante:
+
+```text
+POST /feeders/heartbeat
+```
+
+El backend identifica el feeder mediante la credencial del dispositivo y
+actualiza `lastConection`.
+
+Respuesta exitosa:
+
+```json
+{
+  "message": "Heartbeat recibido"
+}
+```
+
+## Modelo de datos
+
+### User
+
+```text
+name                  String
+surname               String
+email                 String, único
+password              String, hash bcrypt
+emailReceiver         Boolean
+resetPasswordToken    String
+resetPasswordExpires  Date
+```
+
+### Feeder
+
+```text
+feederId               String, único
+userId                 String | null
+feederName             String
+feederLogo             String
+feederAsign            Boolean
+feederQuantity         Number
+lastConection          Date
+deviceCredentialHash   String
+pairing.tokenHash      String
+pairing.codeHash       String
+pairing.usedAt         Date | null
+```
+
+### Motor
+
+```text
+motorInfo.startHours   Date[]
+motorInfo.motorState    Boolean
+motorInfo.portions      Number
+motorInfo.commandId     String | null
+```
+
+### Configuration
+
+```text
+configuration.revision       Number
+configuration.stepsPerFeed   Number
+configuration.schedules      Array[5]
+```
+
+Cada schedule contiene:
+
+```text
+hour       Number 0..23
+minute     Number 0..59
+portions   Number 1..5
+enabled    Boolean
+```
+
+Las credenciales y sus hashes no deben formar parte de las respuestas normales
+del feeder.
+
+## Integración con el firmware
+
+Flujo recomendado:
+
+```text
+┌───────────────────────┐
+│ Arranque del ESP      │
+└──────────┬────────────┘
+           │
+           ▼
+  ¿Tiene credencial?
+      │             │
+     NO            SÍ
+      │             │
+      ▼             ▼
+ Configurar        Heartbeat
+      │             │
+      └──────┬──────┘
+             ▼
+     Consultar estado remoto
+             │
+             ▼
+      ¿motorState = true?
+        │             │
+       NO            SÍ
+        │             │
+        │             ▼
+        │       Ejecutar motor
+        │             │
+        │             ▼
+        │       POST /feeder/complete
+        │             │
+        └──────┬──────┘
+               ▼
+        Sincronizar eventos
+```
+
+### Polling
+
+El backend utiliza un modelo de polling. El firmware debe definir el intervalo
+según latencia, consumo y requisitos de respuesta.
+
+### Configuración
+
+El firmware debe conservar su `revision` local. Cuando la revisión remota sea
+mayor o diferente, debe descargar y aplicar la configuración correspondiente.
+
+### Historial offline
+
+El firmware puede conservar eventos localmente cuando no haya conectividad y
+sincronizarlos posteriormente. Cada evento debe mantener un `eventId` estable.
+
+## Swagger
+
+Swagger UI está disponible en:
+
+```text
+/api-docs
+```
+
+La especificación se genera mediante `swagger-jsdoc` a partir de las
+anotaciones ubicadas en `routes/`.
+
+La documentación debe mantenerse sincronizada con el contrato HTTP:
+
+```text
+Código real
+    ↓
+routes + controllers + middleware + services
+    ↓
+Swagger
+    ↓
+Frontend / Firmware
+```
+
+Cuando se modifique una ruta, actualizar en el mismo cambio su anotación
+Swagger y este README si cambia el contrato externo.
+
+## Estructura
+
+```text
+backend/
+├── configs/
+│   └── db.js
+├── controllers/
+│   ├── authController.js
+│   ├── deviceFactoryController.js
+│   ├── devicePairingController.js
+│   └── feederController.js
+├── jobs/
+│   └── motorStatusJob.js
+├── middlewares/
+│   ├── authMiddleware.js
+│   ├── deviceAuthMiddleware.js
+│   └── pairingRateLimitMiddleware.js
+├── models/
+│   ├── User.js
+│   └── Feeder.js
+├── routes/
+│   ├── authRoutes.js
+│   ├── deviceFactoryRoutes.js
+│   ├── devicePairingRoutes.js
+│   └── feederRoutes.js
+├── services/
+│   └── devicePairingServices.js
+├── utils/
+│   ├── deviceCredential.js
+│   ├── feederResponse.js
+│   └── pairingCredential.js
+├── index.js
+├── package.json
+├── .env.example
+└── README.md
+```
+
+## Notas de implementación
+
+### Nombres históricos
+
+El modelo conserva nombres establecidos durante versiones anteriores, como
+`feederAsign` y `lastConection`. No renombrarlos unilateralmente sin una
+migración de datos y actualización de clientes.
+
+### `userId`
+
+Actualmente `userId` debe tratarse según el esquema real del modelo. No asumir
+una referencia Mongoose distinta a la implementada.
+
+### Credenciales
+
+Las credenciales sensibles se almacenan mediante hash cuando corresponde. No
+deben incluirse en logs ni documentarse con valores reales.
+
+### Pairing
+
+El pairing es de un solo uso. Al desvincular un dispositivo se generan nuevas
+credenciales de pairing para una futura vinculación.
+
+### Revisión de configuración
+
+`revision` es el mecanismo de sincronización de cambios de configuración entre
+backend y firmware. El firmware debe conservar y comparar ese valor.
+
+### Idempotencia
+
+`commandId` identifica órdenes de alimentación y `eventId` identifica eventos
+de historial. Son conceptos distintos y no deben intercambiarse.
+
+## Evolución futura
+
+Las siguientes mejoras no forman parte del contrato actual y no deben tratarse
+como endpoints existentes hasta que sean implementadas:
+
+- health check dedicado;
+- validación centralizada mediante schemas;
+- roles administrativos formales;
+- rate limiting generalizado;
+- rotación/revocación individual de credenciales de dispositivo;
+- tests automatizados de integración;
+- migraciones de datos para cambios de esquema.
+
+Cuando una mejora pase a producción, actualizar conjuntamente código, Swagger
+y README.
