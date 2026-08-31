@@ -1,11 +1,9 @@
-//comentario
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const validator = require("validator");
 const axios = require("axios");
 const crypto = require("crypto");
-require('dotenv').config();
 
 const sendResetEmail = async ({ email, name, resetLink }) => {
   const serviceId = process.env.EMAILJS_SERVICE_ID;
@@ -21,28 +19,27 @@ const sendResetEmail = async ({ email, name, resetLink }) => {
   const data = {
     service_id: serviceId,
     template_id: templateId,
-    user_id: userId, // IMPORTANTE: clave pública
+    user_id: userId,
     template_params: templateParams,
   };
-  console.log({
-    serviceId,
-    templateId,
-    userId,
-    email,
-    name,
-    resetLink,
-  });
 
   try {
-    const response = await axios.post("https://api.emailjs.com/api/v1.0/email/send", data, {
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+    const response = await axios.post(
+      "https://api.emailjs.com/api/v1.0/email/send",
+      data,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
 
     return response.data;
   } catch (err) {
-    console.error("Detalles del error EmailJS:", err.response?.data || err.message);
+    console.error(
+      "Detalles del error EmailJS:",
+      err.response?.data || err.message
+    );
     throw new Error("Error al enviar el email con EmailJS");
   }
 };
@@ -64,13 +61,21 @@ exports.register = async (req, res) => {
   }
 
   if (password.length < 8 || !/[A-Z]/.test(password)) {
-    return res.status(400).json({ message: "La contraseña no cumple con los requisitos." });
+    return res.status(400).json({
+      message: "La contraseña no cumple con los requisitos.",
+    });
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);
 
   try {
-    const newUser = new User({ email, password: hashedPassword, name, surname, emailReceiver });
+    const newUser = new User({
+      email,
+      password: hashedPassword,
+      name,
+      surname,
+      emailReceiver,
+    });
     await newUser.save();
     res.status(201).json({ message: "Usuario registrado exitosamente" });
   } catch (error) {
@@ -91,7 +96,9 @@ exports.login = async (req, res) => {
   const validPassword = await bcrypt.compare(password, user.password);
   if (!validPassword) return res.status(400).json({ message: "Contraseña incorrecta" });
 
-  const token = jwt.sign({ _id: user._id }, process.env.JWT_SECRET, { expiresIn: "1h" });
+  const token = jwt.sign({ _id: user._id }, process.env.JWT_SECRET, {
+    expiresIn: "1h",
+  });
   res.json({ token });
 };
 
@@ -104,13 +111,21 @@ exports.forgotPassword = async (req, res) => {
   if (!user) return res.status(404).json({ message: "Usuario no encontrado" });
 
   const token = crypto.randomBytes(32).toString("hex");
-  const expiration = Date.now() + 3600000; // 1 hora
+  const expiration = Date.now() + 3600000;
 
   user.resetPasswordToken = token;
   user.resetPasswordExpires = expiration;
   await user.save();
 
-  const resetLink = `${process.env.API_URL}/${token}`;
+  const frontendUrl = process.env.FRONTEND_URL;
+  if (!frontendUrl) {
+    console.error("FRONTEND_URL no está configurada.");
+    return res.status(500).json({
+      message: "La recuperación de contraseña no está configurada correctamente.",
+    });
+  }
+
+  const resetLink = `${frontendUrl.replace(/\/$/, "")}/${token}`;
 
   try {
     await sendResetEmail({
