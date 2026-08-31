@@ -16,6 +16,13 @@ connectDB();
 app.use(cors());
 app.use(express.json());
 
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "ok",
+    service: "catfeeder-api"
+  });
+});
+
 app.use("/", authRoutes);
 app.use("/", feederRoutes);
 app.use("/", deviceFactoryRoutes);
@@ -32,15 +39,8 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: "{serverUrl}",
+        url: process.env.API_URL || `http://localhost:${process.env.PORT || 5000}`,
         description: "Servidor CatFeeder",
-        variables: {
-          serverUrl: {
-            default: "http://localhost:5000",
-            description:
-              "URL base del backend. En producción reemplazar por la URL pública de Render.",
-          },
-        },
       },
     ],
     tags: [
