@@ -1,7 +1,8 @@
 #include "services/HeartbetService.h"
 
-HeartbeatService::HeartbeatService(ApiClient& apiClient, WiFiService& wifiService)
-    : _apiClient(apiClient), _wifiService(wifiService)
+HeartbeatService::HeartbeatService(ApiClient& apiClient, WiFiService& wifiService,
+                                   DiagnosticService& diagnostics)
+    : _apiClient(apiClient), _wifiService(wifiService), _diagnostics(diagnostics)
 {
 }
 
@@ -26,6 +27,6 @@ void HeartbeatService::update()
 
     if (!_apiClient.sendHeartbeat())
     {
-        Serial.println("[HeartbeatService] Error al enviar heartbeat.");
+        _diagnostics.record("HEARTBEAT_ERROR");
     }
 }

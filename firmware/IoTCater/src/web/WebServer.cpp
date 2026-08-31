@@ -6,21 +6,21 @@
 
 WebServer::WebServer(Motor& motor, WiFiService& wifi, FeedingService& feedingService,
                      OtaService& otaService,
-                     const BackendConnectionService& backendConnectionService)
+                     const BackendConnectionService& backendConnectionService,
+                     DiagnosticService& diagnostics)
     : _motor(motor),
       _wifi(wifi),
       _feedingService(feedingService),
       _otaService(otaService),
-      _backendConnectionService(backendConnectionService)
+      _backendConnectionService(backendConnectionService),
+      _diagnostics(diagnostics)
 {
 }
 
 void WebServer::begin()
 {
     if (_started)
-    {
         return;
-    }
 
     registerRoutes();
     _server.begin();
@@ -31,9 +31,7 @@ void WebServer::begin()
 void WebServer::stop()
 {
     if (!_started)
-    {
         return;
-    }
 
     _server.stop();
     _started = false;
@@ -42,9 +40,7 @@ void WebServer::stop()
 void WebServer::update()
 {
     if (_started)
-    {
         _server.handleClient();
-    }
 }
 
 void WebServer::registerRoutes()
@@ -53,6 +49,8 @@ void WebServer::registerRoutes()
     _server.onNotFound([this]() { handleNotFound(); });
     _server.on("/feed", HTTP_POST, [this]() { handleFeed(); });
     _server.on("/status", [this]() { handleStatus(); });
+    _server.on("/diagnostics", HTTP_GET, [this]() { handleDiagnostics(); });
+    _server.on("/diagnostics/clear", HTTP_POST, [this]() { handleDiagnosticsClear(); });
     _server.on("/update", HTTP_GET, [this]() { _otaService.handlePage(_server); });
     _server.on("/update", HTTP_POST, [this]() {}, [this]() { _otaService.handleUpdate(_server); });
 }
@@ -120,16 +118,25 @@ void WebServer::handleStatus()
     String response = "{";
     response += "\"feeding\": ";
     response += feeding ? "true" : "false";
-    response += ",";
-    response += "\"wifiConnected\": ";
+    response += ",\"wifiConnected\": ";
     response += wifiConnected ? "true" : "false";
-    response += ",";
-    response += "\"backendAvailable\": ";
+    response += ",\"backendAvailable\": ";
     response += backendAvailable ? "true" : "false";
-    response += ",";
-    response += "\"ipAddress\": ";
-    response += "\"" + ipAddress + "\"";
-    response += "}";
+    response += ",\"ipAddress\": \"";
+    response += ipAddress;
+    response += "\"}";
 
     _server.send(200, "application/json", response);
+}
+
+void WebServer::handleDiagnostics()
+{
+    const String diagnostics = _diagnostics.read();
+    _server.send(200, "text/plain; charset=utf-8", diagnostics);
+}
+
+void WebServer::handleDiagnosticsClear()
+{
+    _diagnostics.clear();
+    _server.send(200, "application/json", R"json({"success":true})json");
 }

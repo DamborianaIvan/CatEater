@@ -24,13 +24,15 @@
 #include "services/FeedingHistoryService.h"
 #include "services/SyncService.h"
 #include "services/OtaService.h"
+#include "services/DiagnosticService.h"
 #include "storage/DeviceCredentialStorage.h"
 
 Motor motor;
 FeedingHistoryService feedingHistoryService;
+DiagnosticService diagnosticService;
 WiFiService wifi;
 TimeService timeService(wifi);
-FeedingService feedingService(motor, feedingHistoryService, timeService);
+FeedingService feedingService(motor, feedingHistoryService, timeService, diagnosticService);
 HttpClient httpClient;
 Configuration configuration;
 Scheduler scheduler(timeService, feedingService, configuration);
@@ -42,24 +44,22 @@ DeviceCredentialStorage deviceCredentialStorage;
 ApiClient apiClient(httpClient, deviceInfo, backendConnectionService, deviceCredentialStorage);
 RemoteCommandStorage remoteCommandStorage;
 OtaService otaService(motor);
-WebServer webServer(motor, wifi, feedingService, otaService, backendConnectionService);
-HeartbeatService heartbeatService(apiClient, wifi);
+WebServer webServer(motor, wifi, feedingService, otaService, backendConnectionService, diagnosticService);
+HeartbeatService heartbeatService(apiClient, wifi, diagnosticService);
 ButtonService buttonService(feedingService, D0);
-SyncService syncService(apiClient, feedingHistoryService, timeService, wifi);
+SyncService syncService(apiClient, feedingHistoryService, timeService, wifi, diagnosticService);
 ProvisioningService provisioningService(wifi, wifiCredentialsStorage);
 ConfigurationRevisionStorage configurationRevisionStorage;
 ConfigurationSyncService configurationSyncService(apiClient, storage, configurationRevisionStorage,
                                                   configuration, motor);
 RemoteStateService remoteStateService(apiClient, feedingService, wifi, remoteCommandStorage,
-                                      configurationSyncService);
+                                      configurationSyncService, diagnosticService);
 
 void provisionFactoryDeviceCredential()
 {
 #ifdef CATFEEDER_FACTORY_DEVICE_CREDENTIAL
     if (apiClient.hasDeviceCredential())
-    {
         return;
-    }
 
     const String deviceCredential = CATFEEDER_FACTORY_DEVICE_CREDENTIAL;
 
@@ -70,13 +70,9 @@ void provisionFactoryDeviceCredential()
     }
 
     if (deviceCredentialStorage.save(deviceCredential))
-    {
         Serial.println("[Factory] Device credential almacenada correctamente.");
-    }
     else
-    {
         Serial.println("[Factory] No se pudo almacenar la device credential.");
-    }
 #endif
 }
 
@@ -97,9 +93,9 @@ void handleWifiConnected()
 bool hasWifiJustConnected()
 {
     static ConnectionState previousState = ConnectionState::Disconnected;
-    ConnectionState currentState = wifi.getConnectionState();
-    bool connected = currentState == ConnectionState::Connected &&
-                     previousState != ConnectionState::Connected;
+    const ConnectionState currentState = wifi.getConnectionState();
+    const bool connected = currentState == ConnectionState::Connected &&
+                           previousState != ConnectionState::Connected;
     previousState = currentState;
     return connected;
 }
@@ -110,6 +106,7 @@ void setup()
     motor.begin();
     storage.begin();
     deviceCredentialStorage.begin();
+    diagnosticService.begin();
     timeService.begin();
     backendConnectionService.begin();
 
@@ -124,10 +121,10 @@ void setup()
     feedingHistoryService.begin();
     syncService.begin();
     provisioningService.begin();
+
     if (!provisioningService.isActive())
-    {
         webServer.begin();
-    }
+
     remoteCommandStorage.begin();
     remoteStateService.loadCommand();
     configurationSyncService.begin();
@@ -140,16 +137,12 @@ void loop()
     provisioningService.update();
 
     if (provisioningService.consumeProvisioned())
-    {
         webServer.begin();
-    }
 
     wifi.update();
 
     if (hasWifiJustConnected())
-    {
         handleWifiConnected();
-    }
 
     timeService.update();
 

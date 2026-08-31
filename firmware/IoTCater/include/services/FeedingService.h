@@ -2,15 +2,15 @@
 
 #include "hardware/Motor.h"
 #include "domain/FeedingEvent.h"
-#include "services/FeedingService.h"
 #include "services/FeedingHistoryService.h"
 #include "services/TimeService.h"
+#include "services/DiagnosticService.h"
 
 class FeedingService
 {
    public:
     explicit FeedingService(Motor& motor, FeedingHistoryService& historyService,
-                            TimeService& timeService);
+                            TimeService& timeService, DiagnosticService& diagnostics);
 
     bool feed(int portions, FeedingSource source);
     bool isFeeding() const;
@@ -19,4 +19,5 @@ class FeedingService
     Motor& _motor;
     FeedingHistoryService& _historyService;
     TimeService& _timeService;
+    DiagnosticService& _diagnostics;
 };

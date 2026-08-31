@@ -7,13 +7,15 @@
 #include "services/WifiService.h"
 #include "storage/RemoteCommandStorage.h"
 #include "services/ConfigurationSyncService.h"
+#include "services/DiagnosticService.h"
 
 class RemoteStateService
 {
    public:
     explicit RemoteStateService(ApiClient& apiClient, FeedingService& feedingService,
                                 WiFiService& wifiService, RemoteCommandStorage& commandStorage,
-                                ConfigurationSyncService& configurationSyncService);
+                                ConfigurationSyncService& configurationSyncService,
+                                DiagnosticService& diagnostics);
     void update();
     bool loadCommand();
 
@@ -23,6 +25,7 @@ class RemoteStateService
     WiFiService& _wifiService;
     RemoteCommandStorage& _commandStorage;
     ConfigurationSyncService& _configurationSyncService;
+    DiagnosticService& _diagnostics;
 
     static constexpr unsigned long CONFIRMATION_RETRY_INTERVAL = 5000;
     static constexpr unsigned long POLL_INTERVAL = 5000;
@@ -31,9 +34,7 @@ class RemoteStateService
     unsigned long _lastRequest = 0;
 
     bool _remoteFeedInProgress = false;
-
     String _activeCommandId;
-
     RemoteCommand _command;
     bool _hasCommand = false;
 

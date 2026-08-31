@@ -4,12 +4,13 @@
 #include "services/FeedingHistoryService.h"
 #include "services/TimeService.h"
 #include "services/WifiService.h"
+#include "services/DiagnosticService.h"
 
 class SyncService
 {
    public:
     SyncService(ApiClient& apiClient, FeedingHistoryService& historyService, TimeService& timeService,
-                WiFiService& wifiService);
+                WiFiService& wifiService, DiagnosticService& diagnostics);
 
     void begin();
     void update();
@@ -19,6 +20,7 @@ class SyncService
     FeedingHistoryService& _historyService;
     TimeService& _timeService;
     WiFiService& _wifiService;
+    DiagnosticService& _diagnostics;
 
     unsigned long _lastSync = 0;
 

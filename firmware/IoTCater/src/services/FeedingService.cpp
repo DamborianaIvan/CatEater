@@ -2,8 +2,8 @@
 #include "domain/Configuration.h"
 
 FeedingService::FeedingService(Motor& motor, FeedingHistoryService& historyService,
-                               TimeService& timeService)
-    : _motor(motor), _historyService(historyService), _timeService(timeService)
+                               TimeService& timeService, DiagnosticService& diagnostics)
+    : _motor(motor), _historyService(historyService), _timeService(timeService), _diagnostics(diagnostics)
 {
 }
 
@@ -11,11 +11,13 @@ bool FeedingService::feed(int portions, FeedingSource source)
 {
     if (!Configuration::isValidPortions(portions))
     {
+        _diagnostics.record("FEEDING_INVALID_PORTIONS");
         return false;
     }
 
     if (!_motor.feed(portions))
     {
+        _diagnostics.record("FEEDING_MOTOR_ERROR");
         return false;
     }
 
@@ -23,6 +25,7 @@ bool FeedingService::feed(int portions, FeedingSource source)
     if (eventId.isEmpty())
     {
         Serial.println("[FeedingService] Advertencia: no se pudo generar eventId; historial omitido.");
+        _diagnostics.record("FEEDING_EVENT_ID_ERROR");
         return true;
     }
 
@@ -32,6 +35,7 @@ bool FeedingService::feed(int portions, FeedingSource source)
     if (!_historyService.save(event))
     {
         Serial.println("[FeedingService] Advertencia: no se pudo guardar historial.");
+        _diagnostics.record("FEEDING_HISTORY_ERROR", eventId.c_str());
     }
 
     return true;
