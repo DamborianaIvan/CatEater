@@ -6,8 +6,7 @@ const swaggerJsDoc = require("swagger-jsdoc");
 const swaggerUi = require("swagger-ui-express");
 
 const authRoutes = require("./routes/authRoutes");
-const feederRoutes = require("./routes/feederRoutes");
-const heartbeatRoutes = require("./routes/heartbeatRoutes");
+const feederRoutes = require("./routes/feederRoutes");;
 const deviceFactoryRoutes = require("./routes/deviceFactoryRoutes");
 const devicePairingRoutes = require("./routes/devicePairingRoutes");
 
@@ -26,7 +25,6 @@ app.get("/health", (req, res) => {
 
 app.use("/", authRoutes);
 app.use("/", feederRoutes);
-app.use("/", heartbeatRoutes);
 app.use("/", deviceFactoryRoutes);
 app.use("/", devicePairingRoutes);
 
