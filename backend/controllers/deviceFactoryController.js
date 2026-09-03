@@ -77,6 +77,44 @@ const createFactoryDevice = async (req, res) => {
   }
 };
 
+const resetFactoryDeviceCredential = async (req, res) => {
+  const { feederId } = req.params;
+
+  if (!feederId || typeof feederId !== "string" || feederId.trim() === "") {
+    return res.status(400).json({
+      error: "feederId es requerido y debe ser un string válido"
+    });
+  }
+
+  try {
+    const feeder = await Feeder.findOne({ feederId: feederId.trim() }).select(
+      "+deviceCredentialHash"
+    );
+
+    if (!feeder) {
+      return res.status(404).json({
+        error: "Dispositivo no encontrado"
+      });
+    }
+
+    const deviceCredential = generateDeviceCredential();
+    feeder.deviceCredentialHash = hashDeviceCredential(deviceCredential);
+    await feeder.save();
+
+    return res.status(200).json({
+      feederId: feeder.feederId,
+      deviceCredential
+    });
+  } catch (error) {
+    console.error("Error al regenerar device credential:", error);
+
+    return res.status(500).json({
+      error: "Error interno del servidor"
+    });
+  }
+};
+
 module.exports = {
-  createFactoryDevice
+  createFactoryDevice,
+  resetFactoryDeviceCredential
 };
