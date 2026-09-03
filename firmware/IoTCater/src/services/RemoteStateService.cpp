@@ -40,11 +40,18 @@ void RemoteStateService::pollMotorState()
     String commandId;
     uint32_t configRevision = 0;
 
+    Serial.println("[RemoteStateService] Consultando estado remoto...");
+
     if (!_apiClient.getMotorState(motorState, portions, commandId, configRevision))
     {
+        Serial.println("[RemoteStateService] ERROR: fallo GET /feeders/motor-state.");
         _diagnostics.record("REMOTE_STATE_ERROR");
         return;
     }
+
+    Serial.printf("[RemoteStateService] Backend: motor=%s portions=%d commandId=%s configRevision=%lu\n",
+                  motorState ? "ON" : "OFF", portions, commandId.c_str(),
+                  static_cast<unsigned long>(configRevision));
 
     _configurationSyncService.update(configRevision);
 

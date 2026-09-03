@@ -21,20 +21,30 @@ HttpResponse HttpClient::executeRequest(const String& url, HttpMethod method, co
 {
     HttpResponse response;
     HTTPClient http;
+    const unsigned long startMs = millis();
+
+    Serial.printf("[HttpClient] %s %s | timeout=%u ms\n",
+                  method == HttpMethod::Get ? "GET" : "POST",
+                  url.c_str(),
+                  timeoutMs);
 
     bool started = false;
 
     if (url.startsWith("https://"))
     {
+        Serial.println("[HttpClient] Transporte: HTTPS");
         started = http.begin(_secureClient, url);
     }
     else
     {
+        Serial.println("[HttpClient] Transporte: HTTP");
         started = http.begin(_client, url);
     }
 
     if (!started)
     {
+        Serial.printf("[HttpClient] ERROR: no se pudo iniciar la conexión | elapsed=%lu ms\n",
+                      millis() - startMs);
         return response;
     }
 
@@ -57,16 +67,30 @@ HttpResponse HttpClient::executeRequest(const String& url, HttpMethod method, co
 
         default:
             http.end();
+            Serial.printf("[HttpClient] ERROR: método HTTP no soportado | elapsed=%lu ms\n",
+                          millis() - startMs);
             return response;
     }
 
-    // ESP8266HTTPClient uses negative values for transport-level failures.
-    // A positive value means an HTTP response was received, including 4xx/5xx.
+    const unsigned long elapsedMs = millis() - startMs;
+
+    // ESP8266HTTPClient usa valores negativos para errores de transporte.
+    // Un valor positivo significa que se recibió una respuesta HTTP, incluso 4xx/5xx.
     response.transportSuccess = response.statusCode > 0;
+
+    Serial.printf("[HttpClient] Resultado | status=%d | transport=%s | elapsed=%lu ms\n",
+                  response.statusCode,
+                  response.transportSuccess ? "OK" : "FAIL",
+                  elapsedMs);
 
     if (response.transportSuccess)
     {
         response.body = http.getString();
+
+        if (response.statusCode < 200 || response.statusCode >= 300)
+        {
+            Serial.printf("[HttpClient] HTTP error body: %s\n", response.body.c_str());
+        }
     }
 
     http.end();

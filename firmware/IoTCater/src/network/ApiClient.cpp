@@ -86,17 +86,32 @@ bool ApiClient::getMotorState(bool& motorState, int& portions, String& commandId
     HttpResponse response = _httpClient.get(buildUrl(endpoint), headers, MOTOR_STATE_TIMEOUT_MS);
     updateBackendAvailability(response);
 
+    Serial.printf("[ApiClient] GET %s -> transporte=%s, status=%d\n",
+                  endpoint.c_str(), response.transportSuccess ? "OK" : "ERROR", response.statusCode);
+
     if (!response.isHttpSuccess() || response.statusCode != 200)
+    {
+        Serial.println("[ApiClient] Motor state rechazado por backend.");
         return false;
+    }
 
     JsonDocument document;
-    if (deserializeJson(document, response.body))
+    DeserializationError error = deserializeJson(document, response.body);
+    if (error)
+    {
+        Serial.printf("[ApiClient] JSON motor state invalido: %s\n", error.c_str());
         return false;
+    }
 
     motorState = document["motorState"] | false;
     portions = document["portions"] | 1;
     commandId = document["commandId"] | "";
     configRevision = document["configRevision"] | 0;
+
+    Serial.printf("[ApiClient] Motor state: motor=%s, portions=%d, commandId=%s, configRevision=%lu\n",
+                  motorState ? "ON" : "OFF", portions, commandId.c_str(),
+                  static_cast<unsigned long>(configRevision));
+
     return true;
 }
 
@@ -119,12 +134,28 @@ bool ApiClient::getRemoteConfiguration(Configuration& configuration, uint32_t& r
     HttpResponse response = _httpClient.get(buildUrl(endpoint), headers, BACKGROUND_TIMEOUT_MS);
     updateBackendAvailability(response);
 
+    Serial.printf("[ApiClient] GET %s -> transporte=%s, status=%d\n",
+                  endpoint.c_str(), response.transportSuccess ? "OK" : "ERROR", response.statusCode);
+
     if (!response.isHttpSuccess() || response.statusCode != 200)
+    {
+        Serial.println("[ApiClient] Configuracion remota rechazada por backend.");
         return false;
+    }
 
     JsonDocument document;
-    if (deserializeJson(document, response.body) || !document["revision"].is<uint32_t>())
+    DeserializationError error = deserializeJson(document, response.body);
+    if (error)
+    {
+        Serial.printf("[ApiClient] JSON configuracion remota invalido: %s\n", error.c_str());
         return false;
+    }
+
+    if (!document["revision"].is<uint32_t>())
+    {
+        Serial.println("[ApiClient] La respuesta remota no contiene una revision valida.");
+        return false;
+    }
 
     revision = document["revision"].as<uint32_t>();
     Configuration newConfiguration;
@@ -132,13 +163,19 @@ bool ApiClient::getRemoteConfiguration(Configuration& configuration, uint32_t& r
     JsonArray schedules = document["schedules"].as<JsonArray>();
 
     if (schedules.isNull())
+    {
+        Serial.println("[ApiClient] La configuracion remota no contiene schedules.");
         return false;
+    }
 
     for (uint8_t i = 0; i < MAX_SCHEDULES; ++i)
     {
         JsonObject schedule = schedules[i].as<JsonObject>();
         if (schedule.isNull())
+        {
+            Serial.printf("[ApiClient] Schedule remoto invalido en indice %u.\n", i);
             return false;
+        }
 
         newConfiguration.schedules[i].hour = schedule["hour"] | 0;
         newConfiguration.schedules[i].minute = schedule["minute"] | 0;
@@ -147,6 +184,10 @@ bool ApiClient::getRemoteConfiguration(Configuration& configuration, uint32_t& r
     }
 
     configuration = newConfiguration;
+
+    Serial.printf("[ApiClient] Configuracion remota recibida: revision=%lu, stepsPerFeed=%d\n",
+                  static_cast<unsigned long>(revision), configuration.stepsPerFeed);
+
     return true;
 }
 

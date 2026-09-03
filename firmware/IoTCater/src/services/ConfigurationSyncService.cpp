@@ -16,30 +16,43 @@ void ConfigurationSyncService::begin()
 {
     if (!_revisionStorage.load(_localRevision))
     {
-        Serial.println(
-            "[ConfigurationSyncService] Error cargando revision. "
-            "Usando revision 0.");
-
+        Serial.println("[ConfigurationSyncService] Error cargando revision. Usando revision 0.");
         _localRevision = 0;
     }
 
-    Serial.print("[ConfigurationSyncService] Revision local: ");
-
-    Serial.println(_localRevision);
+    Serial.printf("[ConfigurationSyncService] Revision local: %lu\n",
+                  static_cast<unsigned long>(_localRevision));
 }
 
 void ConfigurationSyncService::update(uint32_t remoteRevision)
 {
-    if (remoteRevision <= _localRevision)
+    Serial.printf("[ConfigurationSyncService] Revision recibida: remota=%lu, local=%lu\n",
+                  static_cast<unsigned long>(remoteRevision),
+                  static_cast<unsigned long>(_localRevision));
+
+    if (remoteRevision == 0)
     {
+        Serial.println("[ConfigurationSyncService] ADVERTENCIA: backend devolvio revision 0.");
         return;
     }
 
-    Serial.print("[ConfigurationSyncService] Nueva revision remota: ");
+    if (remoteRevision < _localRevision)
+    {
+        Serial.println("[ConfigurationSyncService] Revision remota atrasada. No se aplica.");
+        return;
+    }
 
-    Serial.println(remoteRevision);
+    if (remoteRevision == _localRevision)
+    {
+        Serial.println("[ConfigurationSyncService] Configuracion sincronizada.");
+        return;
+    }
 
-    applyRemoteConfiguration(remoteRevision);
+    Serial.printf("[ConfigurationSyncService] Nueva revision remota: %lu\n",
+                  static_cast<unsigned long>(remoteRevision));
+
+    if (!applyRemoteConfiguration(remoteRevision))
+        Serial.println("[ConfigurationSyncService] ERROR: no se pudo aplicar la configuracion remota.");
 }
 
 bool ConfigurationSyncService::applyRemoteConfiguration(uint32_t remoteRevision)
@@ -47,40 +60,40 @@ bool ConfigurationSyncService::applyRemoteConfiguration(uint32_t remoteRevision)
     Configuration newConfiguration;
     uint32_t receivedRevision = 0;
 
+    Serial.println("[ConfigurationSyncService] Solicitando configuracion completa al backend...");
+
     if (!_apiClient.getRemoteConfiguration(newConfiguration, receivedRevision))
     {
         Serial.println("[ConfigurationSyncService] Error obteniendo configuracion remota.");
-
         return false;
     }
 
+    Serial.printf("[ConfigurationSyncService] Respuesta: revision=%lu, stepsPerFeed=%d\n",
+                  static_cast<unsigned long>(receivedRevision), newConfiguration.stepsPerFeed);
+
     if (receivedRevision != remoteRevision)
     {
-        Serial.println(
-            "[ConfigurationSyncService] La revision cambio durante "
-            "la consulta.");
-
+        Serial.printf("[ConfigurationSyncService] ERROR: revision esperada=%lu, recibida=%lu\n",
+                      static_cast<unsigned long>(remoteRevision),
+                      static_cast<unsigned long>(receivedRevision));
         return false;
     }
 
     if (receivedRevision <= _localRevision)
     {
+        Serial.println("[ConfigurationSyncService] La configuracion ya estaba aplicada.");
         return true;
     }
 
     if (!_configurationStorage.saveConfiguration(newConfiguration))
     {
-        Serial.println(
-            "[ConfigurationSyncService] Configuracion invalida "
-            "o no pudo persistirse.");
-
+        Serial.println("[ConfigurationSyncService] ERROR: configuracion invalida o no pudo persistirse.");
         return false;
     }
 
     if (!_revisionStorage.save(receivedRevision))
     {
-        Serial.println("[ConfigurationSyncService] Error guardando revision.");
-
+        Serial.println("[ConfigurationSyncService] ERROR: configuracion guardada pero fallo persistencia de revision.");
         return false;
     }
 
@@ -88,16 +101,14 @@ bool ConfigurationSyncService::applyRemoteConfiguration(uint32_t remoteRevision)
 
     if (!_motor.setStepsPerFeed(newConfiguration.stepsPerFeed))
     {
-        Serial.println("[ConfigurationSyncService] Error aplicando stepsPerFeed al motor.");
-
+        Serial.println("[ConfigurationSyncService] ERROR: fallo aplicando stepsPerFeed al motor.");
         return false;
     }
 
     _localRevision = receivedRevision;
 
-    Serial.print("[ConfigurationSyncService] Configuracion aplicada. Revision: ");
-
-    Serial.println(_localRevision);
+    Serial.printf("[ConfigurationSyncService] Configuracion aplicada correctamente. Revision=%lu, stepsPerFeed=%d\n",
+                  static_cast<unsigned long>(_localRevision), newConfiguration.stepsPerFeed);
 
     return true;
 }

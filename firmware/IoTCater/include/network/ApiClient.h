@@ -36,9 +36,9 @@ class ApiClient
     static constexpr char CONTENT_TYPE[] = "application/json";
     static constexpr char BASE_URL[] = "https://cat-feeder.onrender.com";
     static constexpr char DEVICE_HEARTBEAT_ENDPOINT[] = "/feeders/heartbeat";
-    static constexpr uint16_t MOTOR_STATE_TIMEOUT_MS = 500;
-    static constexpr uint16_t EVENT_SYNC_TIMEOUT_MS = 1000;
-    static constexpr uint16_t BACKGROUND_TIMEOUT_MS = 1000;
+    static constexpr uint16_t MOTOR_STATE_TIMEOUT_MS = 5000;
+    static constexpr uint16_t EVENT_SYNC_TIMEOUT_MS = 5000;
+    static constexpr uint16_t BACKGROUND_TIMEOUT_MS = 5000;
 
     String buildUrl(const String& endpoint) const;
     bool canAttemptRequest() const;
