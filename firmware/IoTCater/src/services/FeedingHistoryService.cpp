@@ -5,32 +5,33 @@
 bool FeedingHistoryService::isValidHistoryFile(const char* path) const
 {
     if (!LittleFS.exists(path)) return false;
+
     File file = LittleFS.open(path, "r");
-    if (!file)
+    if (!file) return false;
+
+    String object;
+    bool endOfArray = false;
+    size_t count = 0;
+
+    while (readNextHistoryObject(file, object, endOfArray))
     {
-        Serial.printf("[FeedingHistory] No se pudo abrir %s para lectura.\n", path);
-        return false;
+        JsonDocument document;
+        const DeserializationError error = deserializeJson(document, object);
+        if (error || !document.is<JsonObject>())
+        {
+            Serial.printf("[FeedingHistory] JSON invalido en %s: %s\n", path, error ? error.c_str() : "objeto invalido");
+            file.close();
+            return false;
+        }
+        ++count;
     }
 
-    JsonDocument document;
-    const size_t heapBefore = ESP.getFreeHeap();
-    const DeserializationError error = deserializeJson(document, file);
-    const size_t heapAfter = ESP.getFreeHeap();
     file.close();
-
-    Serial.printf("[FeedingHistory] Validacion JSON: archivo=%s, heap antes=%u, heap despues=%u, costo=%d bytes.\n",
+    Serial.printf("[FeedingHistory] Validacion streaming: archivo=%s, objetos=%u, heap=%u bytes.\n",
                   path,
-                  static_cast<unsigned>(heapBefore),
-                  static_cast<unsigned>(heapAfter),
-                  static_cast<int>(heapBefore) - static_cast<int>(heapAfter));
-
-    if (error)
-    {
-        Serial.printf("[FeedingHistory] JSON invalido en %s: %s\n", path, error.c_str());
-        return false;
-    }
-
-    return document.is<JsonArray>();
+                  static_cast<unsigned>(count),
+                  static_cast<unsigned>(ESP.getFreeHeap()));
+    return endOfArray;
 }
 
 bool FeedingHistoryService::preserveCorruptHistoryFile(const char* path, const char* preservedPath)
@@ -104,66 +105,264 @@ bool FeedingHistoryService::recoverHistoryFiles()
     return true;
 }
 
-bool FeedingHistoryService::writeHistoryTemp(JsonDocument& document)
+bool FeedingHistoryService::readNextHistoryObject(File& file, String& object, bool& endOfArray) const
 {
-    const size_t jsonSize = measureJson(document);
-    FSInfo fsInfo;
-    const bool fsInfoAvailable = LittleFS.info(fsInfo);
-    const size_t freeBytes = fsInfoAvailable ? fsInfo.totalBytes - fsInfo.usedBytes : 0;
-    const size_t heapBefore = ESP.getFreeHeap();
+    object = "";
+    endOfArray = false;
 
-    Serial.printf("[FeedingHistory] Escritura: JSON=%u bytes, FS libre=%u bytes, heap antes serialize=%u bytes.\n",
-                  static_cast<unsigned>(jsonSize),
-                  static_cast<unsigned>(freeBytes),
-                  static_cast<unsigned>(heapBefore));
+    char current = 0;
+    bool started = false;
+    bool inString = false;
+    bool escaped = false;
+    int depth = 0;
 
-    File file = LittleFS.open(HISTORY_TEMP_FILE, "w");
-    if (!file)
+    while (file.available())
     {
-        Serial.println("[FeedingHistory] ERROR: no se pudo abrir el archivo temporal para escritura.");
-        return false;
+        current = static_cast<char>(file.read());
+
+        if (!started)
+        {
+            if (current == '[' || current == ',' || current == ' ' || current == '\n' || current == '\r' || current == '\t')
+                continue;
+
+            if (current == ']')
+            {
+                endOfArray = true;
+                return false;
+            }
+
+            if (current != '{') return false;
+            started = true;
+            depth = 1;
+            object += current;
+            continue;
+        }
+
+        object += current;
+
+        if (inString)
+        {
+            if (escaped)
+            {
+                escaped = false;
+            }
+            else if (current == '\\')
+            {
+                escaped = true;
+            }
+            else if (current == '"')
+            {
+                inString = false;
+            }
+            continue;
+        }
+
+        if (current == '"')
+        {
+            inString = true;
+        }
+        else if (current == '{')
+        {
+            ++depth;
+        }
+        else if (current == '}')
+        {
+            --depth;
+            if (depth == 0) return true;
+        }
     }
 
-    const size_t written = serializeJson(document, file);
-    const size_t heapAfter = ESP.getFreeHeap();
+    return false;
+}
 
-    Serial.printf("[FeedingHistory] Serialize: heap despues=%u bytes, delta=%d bytes, escrito=%u bytes.\n",
-                  static_cast<unsigned>(heapAfter),
-                  static_cast<int>(heapBefore) - static_cast<int>(heapAfter),
-                  static_cast<unsigned>(written));
+bool FeedingHistoryService::parseHistoryEvent(const String& object, FeedingEvent& event) const
+{
+    JsonDocument document;
+    const DeserializationError error = deserializeJson(document, object);
+    if (error || !document.is<JsonObject>()) return false;
 
-    if (written != jsonSize)
-        Serial.printf("[FeedingHistory] ERROR: serializeJson escribio %u de %u bytes.\n",
-                      static_cast<unsigned>(written),
-                      static_cast<unsigned>(jsonSize));
+    JsonObject entry = document.as<JsonObject>();
+    event.eventId = entry["eventId"] | "";
+    event.timestamp = entry["timestamp"] | 0;
+    event.portions = entry["portions"] | 0;
+    event.synced = entry["synced"] | false;
 
-    file.flush();
-    const size_t fileSize = file.size();
-    file.close();
-
-    if (written != jsonSize || fileSize != written)
-    {
-        Serial.printf("[FeedingHistory] ERROR: escritura inconsistente. written=%u, fileSize=%u, esperado=%u.\n",
-                      static_cast<unsigned>(written),
-                      static_cast<unsigned>(fileSize),
-                      static_cast<unsigned>(jsonSize));
-        return false;
-    }
+    const char* source = entry["source"] | "";
+    if (strcmp(source, "physical") == 0) event.source = FeedingSource::Physical;
+    else if (strcmp(source, "scheduled") == 0) event.source = FeedingSource::Scheduled;
+    else if (strcmp(source, "remote") == 0) event.source = FeedingSource::Remote;
+    else return false;
 
     return true;
 }
 
-bool FeedingHistoryService::writeHistoryDocument(JsonDocument& document)
+bool FeedingHistoryService::serializeEvent(const FeedingEvent& event, Print& output) const
 {
-    if (!writeHistoryTemp(document)) return false;
+    JsonDocument document;
+    JsonObject entry = document.to<JsonObject>();
 
-    if (!replaceHistoryWith(HISTORY_TEMP_FILE))
+    entry["eventId"] = event.eventId;
+    entry["timestamp"] = event.timestamp;
+    entry["portions"] = event.portions;
+    entry["synced"] = event.synced;
+
+    switch (event.source)
     {
-        Serial.println("[FeedingHistory] ERROR: no se pudo reemplazar el historial con el temporal.");
+        case FeedingSource::Physical: entry["source"] = "physical"; break;
+        case FeedingSource::Scheduled: entry["source"] = "scheduled"; break;
+        case FeedingSource::Remote: entry["source"] = "remote"; break;
+        default: return false;
+    }
+
+    return serializeJson(document, output) > 0;
+}
+
+bool FeedingHistoryService::writeHistoryTempWithAppend(const FeedingEvent& event)
+{
+    File output = LittleFS.open(HISTORY_TEMP_FILE, "w");
+    if (!output) return false;
+
+    const size_t heapStart = ESP.getFreeHeap();
+    output.print('[');
+
+    bool first = true;
+    size_t copied = 0;
+
+    if (LittleFS.exists(HISTORY_FILE))
+    {
+        File input = LittleFS.open(HISTORY_FILE, "r");
+        if (!input)
+        {
+            output.close();
+            return false;
+        }
+
+        String object;
+        bool endOfArray = false;
+        while (readNextHistoryObject(input, object, endOfArray))
+        {
+            FeedingEvent existingEvent;
+            if (!parseHistoryEvent(object, existingEvent))
+            {
+                input.close();
+                output.close();
+                return false;
+            }
+
+            if (!first) output.print(',');
+            output.print(object);
+            first = false;
+            ++copied;
+        }
+        input.close();
+
+        if (!endOfArray)
+        {
+            output.close();
+            return false;
+        }
+    }
+
+    if (!first) output.print(',');
+    if (!serializeEvent(event, output))
+    {
+        output.close();
         return false;
     }
 
-    return true;
+    output.print(']');
+    output.flush();
+    const size_t fileSize = output.size();
+    output.close();
+
+    Serial.printf("[FeedingHistory] SAVE streaming: eventos existentes=%u, JSON=%u bytes, heap usado max aprox=%d bytes.\n",
+                  static_cast<unsigned>(copied),
+                  static_cast<unsigned>(fileSize),
+                  static_cast<int>(heapStart) - static_cast<int>(ESP.getFreeHeap()));
+
+    return fileSize > 0;
+}
+
+bool FeedingHistoryService::writeHistoryTempWithoutEvent(const String& eventId, bool& found)
+{
+    found = false;
+
+    File input = LittleFS.open(HISTORY_FILE, "r");
+    if (!input) return false;
+
+    File output = LittleFS.open(HISTORY_TEMP_FILE, "w");
+    if (!output)
+    {
+        input.close();
+        return false;
+    }
+
+    output.print('[');
+    bool first = true;
+    size_t copied = 0;
+
+    String object;
+    bool endOfArray = false;
+    while (readNextHistoryObject(input, object, endOfArray))
+    {
+        FeedingEvent existingEvent;
+        if (!parseHistoryEvent(object, existingEvent))
+        {
+            input.close();
+            output.close();
+            return false;
+        }
+
+        if (existingEvent.eventId == eventId)
+        {
+            found = true;
+            continue;
+        }
+
+        if (!first) output.print(',');
+        output.print(object);
+        first = false;
+        ++copied;
+    }
+
+    input.close();
+    if (!endOfArray)
+    {
+        output.close();
+        return false;
+    }
+
+    output.print(']');
+    output.flush();
+    const size_t fileSize = output.size();
+    output.close();
+
+    Serial.printf("[FeedingHistory] Limpieza streaming: evento=%s, eliminado=%s, restantes=%u, JSON=%u bytes.\n",
+                  eventId.c_str(),
+                  found ? "si" : "no",
+                  static_cast<unsigned>(copied),
+                  static_cast<unsigned>(fileSize));
+
+    return fileSize > 0;
+}
+
+bool FeedingHistoryService::writeHistoryDocument(JsonDocument& document)
+{
+    const size_t jsonSize = measureJson(document);
+    Serial.printf("[FeedingHistory] Escritura legacy: JSON=%u bytes, heap=%u bytes.\n",
+                  static_cast<unsigned>(jsonSize),
+                  static_cast<unsigned>(ESP.getFreeHeap()));
+
+    File file = LittleFS.open(HISTORY_TEMP_FILE, "w");
+    if (!file) return false;
+
+    const size_t written = serializeJson(document, file);
+    file.flush();
+    const size_t fileSize = file.size();
+    file.close();
+
+    if (written != jsonSize || fileSize != written) return false;
+    return replaceHistoryWith(HISTORY_TEMP_FILE);
 }
 
 bool FeedingHistoryService::begin()
@@ -182,22 +381,9 @@ bool FeedingHistoryService::begin()
                       static_cast<unsigned>(fsInfo.usedBytes),
                       static_cast<unsigned>(fsInfo.totalBytes - fsInfo.usedBytes));
     }
-    else
-    {
-        Serial.println("[FeedingHistory] LittleFS OK. No se pudo obtener informacion de capacidad.");
-    }
 
-    if (!loadEventSequence())
-    {
-        Serial.println("[FeedingHistory] ERROR: no se pudo cargar la secuencia de eventos.");
-        return false;
-    }
-
-    if (!recoverHistoryFiles())
-    {
-        Serial.println("[FeedingHistory] ERROR: no se pudo recuperar el historial.");
-        return false;
-    }
+    if (!loadEventSequence()) return false;
+    if (!recoverHistoryFiles()) return false;
 
     Serial.println("[FeedingHistory] Historial inicializado correctamente.");
     return true;
@@ -241,11 +427,7 @@ bool FeedingHistoryService::loadEventSequence()
 bool FeedingHistoryService::saveEventSequence(uint32_t sequence)
 {
     File file = LittleFS.open(EVENT_SEQUENCE_FILE, "w");
-    if (!file)
-    {
-        Serial.println("[FeedingHistory] ERROR: no se pudo abrir la secuencia para escritura.\n");
-        return false;
-    }
+    if (!file) return false;
 
     const size_t written = file.print(sequence);
     file.flush();
@@ -257,45 +439,57 @@ bool FeedingHistoryService::trimHistory()
 {
     if (!LittleFS.exists(HISTORY_FILE)) return true;
 
-    JsonDocument document;
-    File file = LittleFS.open(HISTORY_FILE, "r");
-    if (!file) return false;
-
-    const size_t heapBefore = ESP.getFreeHeap();
-    const DeserializationError error = deserializeJson(document, file);
-    const size_t heapAfter = ESP.getFreeHeap();
-    file.close();
-
-    Serial.printf("[FeedingHistory] trimHistory deserialize: heap antes=%u, despues=%u, costo=%d bytes.\n",
-                  static_cast<unsigned>(heapBefore),
-                  static_cast<unsigned>(heapAfter),
-                  static_cast<int>(heapBefore) - static_cast<int>(heapAfter));
-
-    if (error) return false;
-
-    JsonArray history = document.as<JsonArray>();
-    if (history.isNull()) return false;
-
-    bool changed = false;
-    while (history.size() > MAX_HISTORY_EVENTS)
+    File input = LittleFS.open(HISTORY_FILE, "r");
+    if (!input) return false;
+    File output = LittleFS.open(HISTORY_TEMP_FILE, "w");
+    if (!output)
     {
-        int oldestSyncedIndex = -1;
-        for (size_t i = 0; i < history.size(); ++i)
-        {
-            if (history[i]["synced"] | false)
-            {
-                oldestSyncedIndex = static_cast<int>(i);
-                break;
-            }
-        }
-
-        if (oldestSyncedIndex < 0) break;
-        history.remove(oldestSyncedIndex);
-        changed = true;
+        input.close();
+        return false;
     }
 
-    if (!changed) return true;
-    return writeHistoryDocument(document);
+    output.print('[');
+    bool first = true;
+    size_t kept = 0;
+    size_t removed = 0;
+    String object;
+    bool endOfArray = false;
+
+    while (readNextHistoryObject(input, object, endOfArray))
+    {
+        FeedingEvent event;
+        if (!parseHistoryEvent(object, event))
+        {
+            input.close();
+            output.close();
+            return false;
+        }
+
+        if (event.synced && removed < 1 && kept >= MAX_HISTORY_EVENTS)
+        {
+            ++removed;
+            continue;
+        }
+
+        if (!first) output.print(',');
+        output.print(object);
+        first = false;
+        ++kept;
+    }
+
+    input.close();
+    if (!endOfArray)
+    {
+        output.close();
+        return false;
+    }
+
+    output.print(']');
+    output.flush();
+    output.close();
+
+    if (removed == 0) return true;
+    return replaceHistoryWith(HISTORY_TEMP_FILE);
 }
 
 std::vector<FeedingEvent> FeedingHistoryService::getHistory()
@@ -306,36 +500,15 @@ std::vector<FeedingEvent> FeedingHistoryService::getHistory()
     File file = LittleFS.open(HISTORY_FILE, "r");
     if (!file) return history;
 
-    JsonDocument document;
-    const size_t heapBefore = ESP.getFreeHeap();
-    const DeserializationError error = deserializeJson(document, file);
-    const size_t heapAfter = ESP.getFreeHeap();
-    file.close();
-
-    Serial.printf("[FeedingHistory] getHistory deserialize: heap antes=%u, despues=%u, costo=%d bytes.\n",
-                  static_cast<unsigned>(heapBefore),
-                  static_cast<unsigned>(heapAfter),
-                  static_cast<int>(heapBefore) - static_cast<int>(heapAfter));
-
-    if (error) return history;
-
-    JsonArray array = document.as<JsonArray>();
-    for (JsonObject entry : array)
+    String object;
+    bool endOfArray = false;
+    while (readNextHistoryObject(file, object, endOfArray))
     {
         FeedingEvent event;
-        event.eventId = entry["eventId"] | "";
-        event.timestamp = entry["timestamp"] | 0;
-        event.portions = entry["portions"] | 0;
-        event.synced = entry["synced"] | false;
-
-        const char* source = entry["source"] | "";
-        if (strcmp(source, "physical") == 0) event.source = FeedingSource::Physical;
-        else if (strcmp(source, "scheduled") == 0) event.source = FeedingSource::Scheduled;
-        else if (strcmp(source, "remote") == 0) event.source = FeedingSource::Remote;
-        else continue;
-
-        history.push_back(event);
+        if (parseHistoryEvent(object, event)) history.push_back(event);
     }
+
+    file.close();
     return history;
 }
 
@@ -346,38 +519,26 @@ bool FeedingHistoryService::getNextPendingEvent(FeedingEvent& event)
     File file = LittleFS.open(HISTORY_FILE, "r");
     if (!file) return false;
 
-    JsonDocument document;
-    const size_t heapBefore = ESP.getFreeHeap();
-    const DeserializationError error = deserializeJson(document, file);
-    const size_t heapAfter = ESP.getFreeHeap();
-    file.close();
-
-    Serial.printf("[FeedingHistory] getNextPendingEvent deserialize: heap antes=%u, despues=%u, costo=%d bytes.\n",
-                  static_cast<unsigned>(heapBefore),
-                  static_cast<unsigned>(heapAfter),
-                  static_cast<int>(heapBefore) - static_cast<int>(heapAfter));
-
-    if (error) return false;
-
-    JsonArray array = document.as<JsonArray>();
-    for (JsonObject entry : array)
+    String object;
+    bool endOfArray = false;
+    while (readNextHistoryObject(file, object, endOfArray))
     {
-        if (entry["synced"] | false) continue;
+        FeedingEvent candidate;
+        if (!parseHistoryEvent(object, candidate))
+        {
+            file.close();
+            return false;
+        }
 
-        const char* source = entry["source"] | "";
-        FeedingSource parsedSource;
-        if (strcmp(source, "physical") == 0) parsedSource = FeedingSource::Physical;
-        else if (strcmp(source, "scheduled") == 0) parsedSource = FeedingSource::Scheduled;
-        else if (strcmp(source, "remote") == 0) parsedSource = FeedingSource::Remote;
-        else continue;
-
-        event.eventId = entry["eventId"] | "";
-        event.timestamp = entry["timestamp"] | 0;
-        event.portions = entry["portions"] | 0;
-        event.source = parsedSource;
-        event.synced = false;
-        return true;
+        if (!candidate.synced)
+        {
+            event = candidate;
+            file.close();
+            return true;
+        }
     }
+
+    file.close();
     return false;
 }
 
@@ -385,128 +546,31 @@ bool FeedingHistoryService::markAsSynced(const String& eventId)
 {
     if (!LittleFS.exists(HISTORY_FILE)) return false;
 
-    File file = LittleFS.open(HISTORY_FILE, "r");
-    if (!file) return false;
-
-    JsonDocument document;
-    const size_t heapBefore = ESP.getFreeHeap();
-    const DeserializationError error = deserializeJson(document, file);
-    const size_t heapAfter = ESP.getFreeHeap();
-    file.close();
-
-    Serial.printf("[FeedingHistory] markAsSynced deserialize: heap antes=%u, despues=%u, costo=%d bytes.\n",
-                  static_cast<unsigned>(heapBefore),
-                  static_cast<unsigned>(heapAfter),
-                  static_cast<int>(heapBefore) - static_cast<int>(heapAfter));
-
-    if (error) return false;
-
-    JsonArray history = document.as<JsonArray>();
     bool found = false;
-    for (JsonObject entry : history)
-    {
-        if (entry["eventId"] == eventId)
-        {
-            entry["synced"] = true;
-            found = true;
-            break;
-        }
-    }
-
+    if (!writeHistoryTempWithoutEvent(eventId, found)) return false;
     if (!found) return false;
-    return writeHistoryDocument(document);
+
+    return replaceHistoryWith(HISTORY_TEMP_FILE);
 }
 
 bool FeedingHistoryService::save(const FeedingEvent& event)
 {
-    JsonDocument document;
     const size_t heapStart = ESP.getFreeHeap();
-
-    Serial.printf("[FeedingHistory] SAVE inicio: heap=%u bytes, evento=%s, portions=%u.\n",
+    Serial.printf("[FeedingHistory] SAVE streaming inicio: heap=%u bytes, evento=%s.\n",
                   static_cast<unsigned>(heapStart),
-                  event.eventId.c_str(),
-                  static_cast<unsigned>(event.portions));
+                  event.eventId.c_str());
 
-    if (LittleFS.exists(HISTORY_FILE))
+    if (!writeHistoryTempWithAppend(event))
     {
-        File file = LittleFS.open(HISTORY_FILE, "r");
-        if (!file)
-        {
-            Serial.println("[FeedingHistory] ERROR: no se pudo abrir el historial existente.");
-            return false;
-        }
-
-        const size_t fileSize = file.size();
-        const size_t heapBeforeDeserialize = ESP.getFreeHeap();
-        Serial.printf("[FeedingHistory] SAVE antes deserialize: JSON en disco=%u bytes, heap=%u bytes.\n",
-                      static_cast<unsigned>(fileSize),
-                      static_cast<unsigned>(heapBeforeDeserialize));
-
-        const DeserializationError error = deserializeJson(document, file);
-        const size_t heapAfterDeserialize = ESP.getFreeHeap();
-        file.close();
-
-        Serial.printf("[FeedingHistory] SAVE despues deserialize: heap=%u bytes, costo=%d bytes.\n",
-                      static_cast<unsigned>(heapAfterDeserialize),
-                      static_cast<int>(heapBeforeDeserialize) - static_cast<int>(heapAfterDeserialize));
-
-        if (error)
-        {
-            Serial.printf("[FeedingHistory] ERROR: historial existente invalido: %s\n", error.c_str());
-            return false;
-        }
+        Serial.printf("[FeedingHistory] SAVE streaming ERROR: heap final=%u bytes.\n",
+                      static_cast<unsigned>(ESP.getFreeHeap()));
+        return false;
     }
 
-    const size_t heapBeforeAdd = ESP.getFreeHeap();
-    JsonArray history = document.is<JsonArray>() ? document.as<JsonArray>() : document.to<JsonArray>();
-    JsonObject entry = history.add<JsonObject>();
-
-    entry["eventId"] = event.eventId;
-    entry["timestamp"] = event.timestamp;
-    entry["portions"] = event.portions;
-    entry["synced"] = event.synced;
-
-    switch (event.source)
-    {
-        case FeedingSource::Physical: entry["source"] = "physical"; break;
-        case FeedingSource::Scheduled: entry["source"] = "scheduled"; break;
-        case FeedingSource::Remote: entry["source"] = "remote"; break;
-    }
-
-    const size_t heapAfterAdd = ESP.getFreeHeap();
-    Serial.printf("[FeedingHistory] SAVE despues agregar evento: heap=%u bytes, costo evento=%d bytes, eventos=%u.\n",
-                  static_cast<unsigned>(heapAfterAdd),
-                  static_cast<int>(heapBeforeAdd) - static_cast<int>(heapAfterAdd),
-                  static_cast<unsigned>(history.size()));
-
-    while (history.size() > MAX_HISTORY_EVENTS)
-    {
-        int oldestSyncedIndex = -1;
-        for (size_t i = 0; i < history.size(); ++i)
-        {
-            if (history[i]["synced"] | false)
-            {
-                oldestSyncedIndex = static_cast<int>(i);
-                break;
-            }
-        }
-
-        if (oldestSyncedIndex < 0) break;
-        history.remove(oldestSyncedIndex);
-    }
-
-    const size_t heapBeforeWrite = ESP.getFreeHeap();
-    Serial.printf("[FeedingHistory] SAVE antes writeHistoryDocument: heap=%u bytes, JSON estimado=%u bytes.\n",
-                  static_cast<unsigned>(heapBeforeWrite),
-                  static_cast<unsigned>(measureJson(document)));
-
-    const bool result = writeHistoryDocument(document);
-    const size_t heapEnd = ESP.getFreeHeap();
-
-    Serial.printf("[FeedingHistory] SAVE fin: resultado=%s, heap=%u bytes, variacion desde inicio=%d bytes.\n",
+    const bool result = replaceHistoryWith(HISTORY_TEMP_FILE);
+    Serial.printf("[FeedingHistory] SAVE streaming fin: resultado=%s, heap=%u bytes, delta=%d bytes.\n",
                   result ? "OK" : "ERROR",
-                  static_cast<unsigned>(heapEnd),
-                  static_cast<int>(heapStart) - static_cast<int>(heapEnd));
-
+                  static_cast<unsigned>(ESP.getFreeHeap()),
+                  static_cast<int>(heapStart) - static_cast<int>(ESP.getFreeHeap()));
     return result;
 }
