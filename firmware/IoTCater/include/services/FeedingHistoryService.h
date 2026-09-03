@@ -43,4 +43,5 @@ class FeedingHistoryService
     bool writeHistoryTempWithAppend(const FeedingEvent& event);
     bool writeHistoryTempWithoutEvent(const String& eventId, bool& found);
     bool writeHistoryTempMarkSynced(const String& eventId, bool& found);
+    bool writeHistoryDocument(JsonDocument& document);
 };
