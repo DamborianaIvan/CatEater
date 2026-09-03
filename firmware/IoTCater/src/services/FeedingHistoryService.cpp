@@ -337,11 +337,63 @@ bool FeedingHistoryService::writeHistoryTempWithoutEvent(const String& eventId, 
     const size_t fileSize = output.size();
     output.close();
 
-    Serial.printf("[FeedingHistory] Limpieza streaming: evento=%s, eliminado=%s, restantes=%u, JSON=%u bytes.\n",
-                  eventId.c_str(),
-                  found ? "si" : "no",
-                  static_cast<unsigned>(copied),
-                  static_cast<unsigned>(fileSize));
+    return fileSize > 0;
+}
+
+bool FeedingHistoryService::writeHistoryTempMarkSynced(const String& eventId, bool& found)
+{
+    found = false;
+
+    File input = LittleFS.open(HISTORY_FILE, "r");
+    if (!input) return false;
+
+    File output = LittleFS.open(HISTORY_TEMP_FILE, "w");
+    if (!output)
+    {
+        input.close();
+        return false;
+    }
+
+    output.print('[');
+    bool first = true;
+
+    String object;
+    bool endOfArray = false;
+    while (readNextHistoryObject(input, object, endOfArray))
+    {
+        FeedingEvent event;
+        if (!parseHistoryEvent(object, event))
+        {
+            input.close();
+            output.close();
+            return false;
+        }
+
+        if (event.eventId == eventId)
+        {
+            event.synced = true;
+            found = true;
+        }
+
+        if (!first) output.print(',');
+        if (event.synced && event.eventId == eventId)
+            serializeEvent(event, output);
+        else
+            output.print(object);
+        first = false;
+    }
+
+    input.close();
+    if (!endOfArray)
+    {
+        output.close();
+        return false;
+    }
+
+    output.print(']');
+    output.flush();
+    const size_t fileSize = output.size();
+    output.close();
 
     return fileSize > 0;
 }
@@ -441,6 +493,34 @@ bool FeedingHistoryService::trimHistory()
 
     File input = LittleFS.open(HISTORY_FILE, "r");
     if (!input) return false;
+
+    String object;
+    bool endOfArray = false;
+    size_t count = 0;
+    int oldestSyncedIndex = -1;
+
+    while (readNextHistoryObject(input, object, endOfArray))
+    {
+        FeedingEvent event;
+        if (!parseHistoryEvent(object, event))
+        {
+            input.close();
+            return false;
+        }
+
+        if (event.synced && oldestSyncedIndex < 0)
+            oldestSyncedIndex = static_cast<int>(count);
+
+        ++count;
+    }
+    input.close();
+
+    if (!endOfArray || count <= MAX_HISTORY_EVENTS || oldestSyncedIndex < 0)
+        return true;
+
+    input = LittleFS.open(HISTORY_FILE, "r");
+    if (!input) return false;
+
     File output = LittleFS.open(HISTORY_TEMP_FILE, "w");
     if (!output)
     {
@@ -450,24 +530,15 @@ bool FeedingHistoryService::trimHistory()
 
     output.print('[');
     bool first = true;
+    size_t index = 0;
     size_t kept = 0;
-    size_t removed = 0;
-    String object;
-    bool endOfArray = false;
 
+    endOfArray = false;
     while (readNextHistoryObject(input, object, endOfArray))
     {
-        FeedingEvent event;
-        if (!parseHistoryEvent(object, event))
+        if (static_cast<int>(index) == oldestSyncedIndex)
         {
-            input.close();
-            output.close();
-            return false;
-        }
-
-        if (event.synced && removed < 1 && kept >= MAX_HISTORY_EVENTS)
-        {
-            ++removed;
+            ++index;
             continue;
         }
 
@@ -475,6 +546,7 @@ bool FeedingHistoryService::trimHistory()
         output.print(object);
         first = false;
         ++kept;
+        ++index;
     }
 
     input.close();
@@ -486,9 +558,17 @@ bool FeedingHistoryService::trimHistory()
 
     output.print(']');
     output.flush();
+    const size_t fileSize = output.size();
     output.close();
 
-    if (removed == 0) return true;
+    if (fileSize == 0) return false;
+
+    Serial.printf("[FeedingHistory] Trim streaming: total=%u, eliminado=indice %d, restantes=%u, JSON=%u bytes.\n",
+                  static_cast<unsigned>(count),
+                  oldestSyncedIndex,
+                  static_cast<unsigned>(kept),
+                  static_cast<unsigned>(fileSize));
+
     return replaceHistoryWith(HISTORY_TEMP_FILE);
 }
 
@@ -547,10 +627,13 @@ bool FeedingHistoryService::markAsSynced(const String& eventId)
     if (!LittleFS.exists(HISTORY_FILE)) return false;
 
     bool found = false;
-    if (!writeHistoryTempWithoutEvent(eventId, found)) return false;
+    if (!writeHistoryTempMarkSynced(eventId, found)) return false;
     if (!found) return false;
 
-    return replaceHistoryWith(HISTORY_TEMP_FILE);
+    const bool result = replaceHistoryWith(HISTORY_TEMP_FILE);
+    if (result)
+        trimHistory();
+    return result;
 }
 
 bool FeedingHistoryService::save(const FeedingEvent& event)
