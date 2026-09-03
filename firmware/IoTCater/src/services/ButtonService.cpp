@@ -10,10 +10,8 @@ void ButtonService::begin()
     pinMode(_pin, INPUT_PULLUP);
 
     _lastState = digitalRead(_pin);
-    if (_lastState == LOW)
-    {
-        _pressedAt = millis();
-    }
+    _lastDebouncedState = _lastState;
+    _lastStateChangeAt = millis();
 
     Serial.println("[ButtonService] Iniciado.");
 }
@@ -21,13 +19,28 @@ void ButtonService::begin()
 void ButtonService::update()
 {
     const bool currentState = digitalRead(_pin);
+    const unsigned long now = millis();
 
-    if (_lastState == HIGH && currentState == LOW)
+    if (currentState != _lastState)
     {
-        _pressedAt = millis();
+        _lastState = currentState;
+        _lastStateChangeAt = now;
+        return;
     }
 
-    if (_lastState == LOW && currentState == HIGH)
+    if ((now - _lastStateChangeAt) < DEBOUNCE_MS)
+    {
+        return;
+    }
+
+    if (currentState == _lastDebouncedState)
+    {
+        return;
+    }
+
+    _lastDebouncedState = currentState;
+
+    if (currentState == LOW)
     {
         Serial.println("[ButtonService] Alimentacion manual solicitada.");
 
@@ -40,6 +53,4 @@ void ButtonService::update()
             Serial.println("[ButtonService] No se pudo iniciar la alimentacion.");
         }
     }
-
-    _lastState = currentState;
 }
