@@ -42,4 +42,5 @@ class FeedingHistoryService
     bool serializeEvent(const FeedingEvent& event, Print& output) const;
     bool writeHistoryTempWithAppend(const FeedingEvent& event);
     bool writeHistoryTempWithoutEvent(const String& eventId, bool& found);
+    bool writeHistoryTempMarkSynced(const String& eventId, bool& found);
 };
