@@ -31,6 +31,11 @@ void ButtonService::begin()
 
 void ButtonService::update()
 {
+    // El rearme depende del estado fisico del boton y no de una nueva interrupcion.
+    // Esto evita quedar bloqueado si la pulsacion ocurrio mientras el loop estaba ocupado.
+    if (digitalRead(_pin) == HIGH)
+        _armed = true;
+
     if (!_interruptPressed)
         return;
 
@@ -53,8 +58,4 @@ void ButtonService::update()
     {
         Serial.println("[ButtonService] No se pudo iniciar la alimentacion.");
     }
-
-    // La siguiente pulsacion solo se acepta cuando el boton haya sido liberado.
-    if (digitalRead(_pin) == HIGH)
-        _armed = true;
 }
