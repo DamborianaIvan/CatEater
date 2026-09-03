@@ -14,10 +14,8 @@ class ButtonService
     FeedingService& _feedingService;
     uint8_t _pin;
 
-    bool _lastState = HIGH;
-    bool _lastDebouncedState = HIGH;
-    unsigned long _lastStateChangeAt = 0;
+    volatile bool _interruptPressed = false;
+    bool _armed = true;
 
-    static constexpr unsigned long DEBOUNCE_MS = 50;
     static constexpr int DEFAULT_PORTIONS = 1;
 };
