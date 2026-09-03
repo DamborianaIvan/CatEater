@@ -99,7 +99,10 @@ bool FeedingHistoryService::recoverHistoryFiles()
 bool FeedingHistoryService::writeHistoryTemp(JsonDocument& document)
 {
     const size_t jsonSize = measureJson(document);
-    const size_t freeBytes = LittleFS.totalBytes() - LittleFS.usedBytes();
+    FSInfo fsInfo;
+    const bool fsInfoAvailable = LittleFS.info(fsInfo);
+    const size_t freeBytes = fsInfoAvailable ? fsInfo.totalBytes - fsInfo.usedBytes : 0;
+
     Serial.printf("[FeedingHistory] Escritura: JSON=%u bytes, FS libre=%u bytes.\n",
                   static_cast<unsigned>(jsonSize),
                   static_cast<unsigned>(freeBytes));
@@ -117,9 +120,7 @@ bool FeedingHistoryService::writeHistoryTemp(JsonDocument& document)
                       static_cast<unsigned>(written),
                       static_cast<unsigned>(jsonSize));
 
-    if (!file.flush())
-        Serial.println("[FeedingHistory] ERROR: flush() del archivo temporal fallo.");
-
+    file.flush();
     const size_t fileSize = file.size();
     file.close();
 
@@ -156,10 +157,18 @@ bool FeedingHistoryService::begin()
         return false;
     }
 
-    Serial.printf("[FeedingHistory] LittleFS OK. Total=%u, usado=%u, libre=%u bytes.\n",
-                  static_cast<unsigned>(LittleFS.totalBytes()),
-                  static_cast<unsigned>(LittleFS.usedBytes()),
-                  static_cast<unsigned>(LittleFS.totalBytes() - LittleFS.usedBytes()));
+    FSInfo fsInfo;
+    if (LittleFS.info(fsInfo))
+    {
+        Serial.printf("[FeedingHistory] LittleFS OK. Total=%u, usado=%u, libre=%u bytes.\n",
+                      static_cast<unsigned>(fsInfo.totalBytes),
+                      static_cast<unsigned>(fsInfo.usedBytes),
+                      static_cast<unsigned>(fsInfo.totalBytes - fsInfo.usedBytes));
+    }
+    else
+    {
+        Serial.println("[FeedingHistory] LittleFS OK. No se pudo obtener informacion de capacidad.");
+    }
 
     if (!loadEventSequence())
     {
