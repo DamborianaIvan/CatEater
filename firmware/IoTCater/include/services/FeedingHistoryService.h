@@ -36,6 +36,10 @@ class FeedingHistoryService
     bool isValidHistoryFile(const char* path) const;
     bool preserveCorruptHistoryFile(const char* path, const char* preservedPath);
     bool replaceHistoryWith(const char* replacementPath);
-    bool writeHistoryTemp(JsonDocument& document);
-    bool writeHistoryDocument(JsonDocument& document);
+
+    bool readNextHistoryObject(File& file, String& object, bool& endOfArray) const;
+    bool parseHistoryEvent(const String& object, FeedingEvent& event) const;
+    bool serializeEvent(const FeedingEvent& event, Print& output) const;
+    bool writeHistoryTempWithAppend(const FeedingEvent& event);
+    bool writeHistoryTempWithoutEvent(const String& eventId, bool& found);
 };
