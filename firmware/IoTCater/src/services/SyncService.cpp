@@ -31,18 +31,19 @@ void SyncService::update()
     _lastSync = millis();
 
     FeedingEvent event;
-    while (_historyService.getNextPendingEvent(event))
+    if (!_historyService.getNextPendingEvent(event))
     {
-        if (!_apiClient.syncFeedingEvent(event))
-        {
-            _diagnostics.record("SYNC_ERROR", event.eventId.c_str());
-            break;
-        }
+        return;
+    }
 
-        if (!_historyService.markAsSynced(event.eventId))
-        {
-            _diagnostics.record("SYNC_MARK_ERROR", event.eventId.c_str());
-            break;
-        }
+    if (!_apiClient.syncFeedingEvent(event))
+    {
+        _diagnostics.record("SYNC_ERROR", event.eventId.c_str());
+        return;
+    }
+
+    if (!_historyService.markAsSynced(event.eventId))
+    {
+        _diagnostics.record("SYNC_MARK_ERROR", event.eventId.c_str());
     }
 }
