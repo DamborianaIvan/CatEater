@@ -1,16 +1,5 @@
 #include "services/ButtonService.h"
 
-namespace
-{
-volatile bool* interruptPressedFlag = nullptr;
-
-void IRAM_ATTR handleButtonInterrupt()
-{
-    if (interruptPressedFlag != nullptr)
-        *interruptPressedFlag = true;
-}
-}
-
 ButtonService::ButtonService(FeedingService& feedingService, uint8_t pin)
     : _feedingService(feedingService), _pin(pin)
 {
@@ -20,42 +9,30 @@ void ButtonService::begin()
 {
     pinMode(_pin, INPUT_PULLUP);
 
-    _interruptPressed = false;
-    _armed = digitalRead(_pin) == HIGH;
+    _lastState = digitalRead(_pin);
 
-    interruptPressedFlag = &_interruptPressed;
-    attachInterrupt(digitalPinToInterrupt(_pin), handleButtonInterrupt, FALLING);
+    if (_lastState == LOW)
+        _pressedAt = millis();
 
     Serial.println("[ButtonService] Iniciado.");
 }
 
 void ButtonService::update()
 {
-    // El rearme depende del estado fisico del boton y no de una nueva interrupcion.
-    // Esto evita quedar bloqueado si la pulsacion ocurrio mientras el loop estaba ocupado.
-    if (digitalRead(_pin) == HIGH)
-        _armed = true;
+    const bool currentState = digitalRead(_pin);
 
-    if (!_interruptPressed)
-        return;
+    if (_lastState == HIGH && currentState == LOW)
+        _pressedAt = millis();
 
-    noInterrupts();
-    _interruptPressed = false;
-    interrupts();
-
-    if (!_armed)
-        return;
-
-    _armed = false;
-
-    Serial.println("[ButtonService] Alimentacion manual solicitada.");
-
-    if (_feedingService.feed(DEFAULT_PORTIONS, FeedingSource::Physical))
+    if (_lastState == LOW && currentState == HIGH)
     {
-        Serial.println("[ButtonService] Alimentacion iniciada.");
+        Serial.println("[ButtonService] Alimentacion manual solicitada.");
+
+        if (_feedingService.feed(DEFAULT_PORTIONS, FeedingSource::Physical))
+            Serial.println("[ButtonService] Alimentacion iniciada.");
+        else
+            Serial.println("[ButtonService] No se pudo iniciar la alimentacion.");
     }
-    else
-    {
-        Serial.println("[ButtonService] No se pudo iniciar la alimentacion.");
-    }
+
+    _lastState = currentState;
 }
