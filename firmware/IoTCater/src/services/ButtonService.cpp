@@ -1,5 +1,16 @@
 #include "services/ButtonService.h"
 
+namespace
+{
+volatile bool* interruptPressedFlag = nullptr;
+
+void IRAM_ATTR handleButtonInterrupt()
+{
+    if (interruptPressedFlag != nullptr)
+        *interruptPressedFlag = true;
+}
+}
+
 ButtonService::ButtonService(FeedingService& feedingService, uint8_t pin)
     : _feedingService(feedingService), _pin(pin)
 {
@@ -9,48 +20,41 @@ void ButtonService::begin()
 {
     pinMode(_pin, INPUT_PULLUP);
 
-    _lastState = digitalRead(_pin);
-    _lastDebouncedState = _lastState;
-    _lastStateChangeAt = millis();
+    _interruptPressed = false;
+    _armed = digitalRead(_pin) == HIGH;
+
+    interruptPressedFlag = &_interruptPressed;
+    attachInterrupt(digitalPinToInterrupt(_pin), handleButtonInterrupt, FALLING);
 
     Serial.println("[ButtonService] Iniciado.");
 }
 
 void ButtonService::update()
 {
-    const bool currentState = digitalRead(_pin);
-    const unsigned long now = millis();
-
-    if (currentState != _lastState)
-    {
-        _lastState = currentState;
-        _lastStateChangeAt = now;
+    if (!_interruptPressed)
         return;
-    }
 
-    if ((now - _lastStateChangeAt) < DEBOUNCE_MS)
-    {
+    noInterrupts();
+    _interruptPressed = false;
+    interrupts();
+
+    if (!_armed)
         return;
-    }
 
-    if (currentState == _lastDebouncedState)
+    _armed = false;
+
+    Serial.println("[ButtonService] Alimentacion manual solicitada.");
+
+    if (_feedingService.feed(DEFAULT_PORTIONS, FeedingSource::Physical))
     {
-        return;
+        Serial.println("[ButtonService] Alimentacion iniciada.");
     }
-
-    _lastDebouncedState = currentState;
-
-    if (currentState == LOW)
+    else
     {
-        Serial.println("[ButtonService] Alimentacion manual solicitada.");
-
-        if (_feedingService.feed(DEFAULT_PORTIONS, FeedingSource::Physical))
-        {
-            Serial.println("[ButtonService] Alimentacion iniciada.");
-        }
-        else
-        {
-            Serial.println("[ButtonService] No se pudo iniciar la alimentacion.");
-        }
+        Serial.println("[ButtonService] No se pudo iniciar la alimentacion.");
     }
+
+    // La siguiente pulsacion solo se acepta cuando el boton haya sido liberado.
+    if (digitalRead(_pin) == HIGH)
+        _armed = true;
 }
