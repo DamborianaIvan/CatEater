@@ -13,8 +13,16 @@ bool FeedingHistoryService::isValidHistoryFile(const char* path) const
     }
 
     JsonDocument document;
+    const size_t heapBefore = ESP.getFreeHeap();
     const DeserializationError error = deserializeJson(document, file);
+    const size_t heapAfter = ESP.getFreeHeap();
     file.close();
+
+    Serial.printf("[FeedingHistory] Validacion JSON: archivo=%s, heap antes=%u, heap despues=%u, costo=%d bytes.\n",
+                  path,
+                  static_cast<unsigned>(heapBefore),
+                  static_cast<unsigned>(heapAfter),
+                  static_cast<int>(heapBefore) - static_cast<int>(heapAfter));
 
     if (error)
     {
@@ -102,10 +110,12 @@ bool FeedingHistoryService::writeHistoryTemp(JsonDocument& document)
     FSInfo fsInfo;
     const bool fsInfoAvailable = LittleFS.info(fsInfo);
     const size_t freeBytes = fsInfoAvailable ? fsInfo.totalBytes - fsInfo.usedBytes : 0;
+    const size_t heapBefore = ESP.getFreeHeap();
 
-    Serial.printf("[FeedingHistory] Escritura: JSON=%u bytes, FS libre=%u bytes.\n",
+    Serial.printf("[FeedingHistory] Escritura: JSON=%u bytes, FS libre=%u bytes, heap antes serialize=%u bytes.\n",
                   static_cast<unsigned>(jsonSize),
-                  static_cast<unsigned>(freeBytes));
+                  static_cast<unsigned>(freeBytes),
+                  static_cast<unsigned>(heapBefore));
 
     File file = LittleFS.open(HISTORY_TEMP_FILE, "w");
     if (!file)
@@ -115,6 +125,13 @@ bool FeedingHistoryService::writeHistoryTemp(JsonDocument& document)
     }
 
     const size_t written = serializeJson(document, file);
+    const size_t heapAfter = ESP.getFreeHeap();
+
+    Serial.printf("[FeedingHistory] Serialize: heap despues=%u bytes, delta=%d bytes, escrito=%u bytes.\n",
+                  static_cast<unsigned>(heapAfter),
+                  static_cast<int>(heapBefore) - static_cast<int>(heapAfter),
+                  static_cast<unsigned>(written));
+
     if (written != jsonSize)
         Serial.printf("[FeedingHistory] ERROR: serializeJson escribio %u de %u bytes.\n",
                       static_cast<unsigned>(written),
@@ -226,7 +243,7 @@ bool FeedingHistoryService::saveEventSequence(uint32_t sequence)
     File file = LittleFS.open(EVENT_SEQUENCE_FILE, "w");
     if (!file)
     {
-        Serial.println("[FeedingHistory] ERROR: no se pudo abrir la secuencia para escritura.");
+        Serial.println("[FeedingHistory] ERROR: no se pudo abrir la secuencia para escritura.\n");
         return false;
     }
 
@@ -244,8 +261,16 @@ bool FeedingHistoryService::trimHistory()
     File file = LittleFS.open(HISTORY_FILE, "r");
     if (!file) return false;
 
+    const size_t heapBefore = ESP.getFreeHeap();
     const DeserializationError error = deserializeJson(document, file);
+    const size_t heapAfter = ESP.getFreeHeap();
     file.close();
+
+    Serial.printf("[FeedingHistory] trimHistory deserialize: heap antes=%u, despues=%u, costo=%d bytes.\n",
+                  static_cast<unsigned>(heapBefore),
+                  static_cast<unsigned>(heapAfter),
+                  static_cast<int>(heapBefore) - static_cast<int>(heapAfter));
+
     if (error) return false;
 
     JsonArray history = document.as<JsonArray>();
@@ -282,8 +307,16 @@ std::vector<FeedingEvent> FeedingHistoryService::getHistory()
     if (!file) return history;
 
     JsonDocument document;
+    const size_t heapBefore = ESP.getFreeHeap();
     const DeserializationError error = deserializeJson(document, file);
+    const size_t heapAfter = ESP.getFreeHeap();
     file.close();
+
+    Serial.printf("[FeedingHistory] getHistory deserialize: heap antes=%u, despues=%u, costo=%d bytes.\n",
+                  static_cast<unsigned>(heapBefore),
+                  static_cast<unsigned>(heapAfter),
+                  static_cast<int>(heapBefore) - static_cast<int>(heapAfter));
+
     if (error) return history;
 
     JsonArray array = document.as<JsonArray>();
@@ -314,8 +347,16 @@ bool FeedingHistoryService::getNextPendingEvent(FeedingEvent& event)
     if (!file) return false;
 
     JsonDocument document;
+    const size_t heapBefore = ESP.getFreeHeap();
     const DeserializationError error = deserializeJson(document, file);
+    const size_t heapAfter = ESP.getFreeHeap();
     file.close();
+
+    Serial.printf("[FeedingHistory] getNextPendingEvent deserialize: heap antes=%u, despues=%u, costo=%d bytes.\n",
+                  static_cast<unsigned>(heapBefore),
+                  static_cast<unsigned>(heapAfter),
+                  static_cast<int>(heapBefore) - static_cast<int>(heapAfter));
+
     if (error) return false;
 
     JsonArray array = document.as<JsonArray>();
@@ -348,8 +389,16 @@ bool FeedingHistoryService::markAsSynced(const String& eventId)
     if (!file) return false;
 
     JsonDocument document;
+    const size_t heapBefore = ESP.getFreeHeap();
     const DeserializationError error = deserializeJson(document, file);
+    const size_t heapAfter = ESP.getFreeHeap();
     file.close();
+
+    Serial.printf("[FeedingHistory] markAsSynced deserialize: heap antes=%u, despues=%u, costo=%d bytes.\n",
+                  static_cast<unsigned>(heapBefore),
+                  static_cast<unsigned>(heapAfter),
+                  static_cast<int>(heapBefore) - static_cast<int>(heapAfter));
+
     if (error) return false;
 
     JsonArray history = document.as<JsonArray>();
@@ -371,6 +420,12 @@ bool FeedingHistoryService::markAsSynced(const String& eventId)
 bool FeedingHistoryService::save(const FeedingEvent& event)
 {
     JsonDocument document;
+    const size_t heapStart = ESP.getFreeHeap();
+
+    Serial.printf("[FeedingHistory] SAVE inicio: heap=%u bytes, evento=%s, portions=%u.\n",
+                  static_cast<unsigned>(heapStart),
+                  event.eventId.c_str(),
+                  static_cast<unsigned>(event.portions));
 
     if (LittleFS.exists(HISTORY_FILE))
     {
@@ -381,8 +436,20 @@ bool FeedingHistoryService::save(const FeedingEvent& event)
             return false;
         }
 
+        const size_t fileSize = file.size();
+        const size_t heapBeforeDeserialize = ESP.getFreeHeap();
+        Serial.printf("[FeedingHistory] SAVE antes deserialize: JSON en disco=%u bytes, heap=%u bytes.\n",
+                      static_cast<unsigned>(fileSize),
+                      static_cast<unsigned>(heapBeforeDeserialize));
+
         const DeserializationError error = deserializeJson(document, file);
+        const size_t heapAfterDeserialize = ESP.getFreeHeap();
         file.close();
+
+        Serial.printf("[FeedingHistory] SAVE despues deserialize: heap=%u bytes, costo=%d bytes.\n",
+                      static_cast<unsigned>(heapAfterDeserialize),
+                      static_cast<int>(heapBeforeDeserialize) - static_cast<int>(heapAfterDeserialize));
+
         if (error)
         {
             Serial.printf("[FeedingHistory] ERROR: historial existente invalido: %s\n", error.c_str());
@@ -390,6 +457,7 @@ bool FeedingHistoryService::save(const FeedingEvent& event)
         }
     }
 
+    const size_t heapBeforeAdd = ESP.getFreeHeap();
     JsonArray history = document.is<JsonArray>() ? document.as<JsonArray>() : document.to<JsonArray>();
     JsonObject entry = history.add<JsonObject>();
 
@@ -404,6 +472,12 @@ bool FeedingHistoryService::save(const FeedingEvent& event)
         case FeedingSource::Scheduled: entry["source"] = "scheduled"; break;
         case FeedingSource::Remote: entry["source"] = "remote"; break;
     }
+
+    const size_t heapAfterAdd = ESP.getFreeHeap();
+    Serial.printf("[FeedingHistory] SAVE despues agregar evento: heap=%u bytes, costo evento=%d bytes, eventos=%u.\n",
+                  static_cast<unsigned>(heapAfterAdd),
+                  static_cast<int>(heapBeforeAdd) - static_cast<int>(heapAfterAdd),
+                  static_cast<unsigned>(history.size()));
 
     while (history.size() > MAX_HISTORY_EVENTS)
     {
@@ -421,5 +495,18 @@ bool FeedingHistoryService::save(const FeedingEvent& event)
         history.remove(oldestSyncedIndex);
     }
 
-    return writeHistoryDocument(document);
+    const size_t heapBeforeWrite = ESP.getFreeHeap();
+    Serial.printf("[FeedingHistory] SAVE antes writeHistoryDocument: heap=%u bytes, JSON estimado=%u bytes.\n",
+                  static_cast<unsigned>(heapBeforeWrite),
+                  static_cast<unsigned>(measureJson(document)));
+
+    const bool result = writeHistoryDocument(document);
+    const size_t heapEnd = ESP.getFreeHeap();
+
+    Serial.printf("[FeedingHistory] SAVE fin: resultado=%s, heap=%u bytes, variacion desde inicio=%d bytes.\n",
+                  result ? "OK" : "ERROR",
+                  static_cast<unsigned>(heapEnd),
+                  static_cast<int>(heapStart) - static_cast<int>(heapEnd));
+
+    return result;
 }
