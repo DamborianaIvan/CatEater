@@ -118,7 +118,11 @@ void setup()
     buttonService.begin();
     scheduler.begin();
     heartbeatService.begin();
-    feedingHistoryService.begin();
+
+    const bool historyReady = feedingHistoryService.begin();
+    if (!historyReady)
+        Serial.println("[FeedingHistory] ADVERTENCIA: historial no disponible.\n");
+
     syncService.begin();
     provisioningService.begin();
 
