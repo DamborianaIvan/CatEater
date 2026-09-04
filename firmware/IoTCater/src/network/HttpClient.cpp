@@ -24,9 +24,7 @@ HttpResponse HttpClient::executeRequest(const String& url, HttpMethod method, co
     const unsigned long startMs = millis();
 
     Serial.printf("[HttpClient] %s %s | timeout=%u ms\n",
-                  method == HttpMethod::Get ? "GET" : "POST",
-                  url.c_str(),
-                  timeoutMs);
+                  method == HttpMethod::Get ? "GET" : "POST", url.c_str(), timeoutMs);
 
     bool started = false;
 
@@ -51,9 +49,7 @@ HttpResponse HttpClient::executeRequest(const String& url, HttpMethod method, co
     http.setTimeout(timeoutMs);
 
     for (const auto& header : headers)
-    {
         http.addHeader(header.first, header.second);
-    }
 
     switch (method)
     {
@@ -73,15 +69,10 @@ HttpResponse HttpClient::executeRequest(const String& url, HttpMethod method, co
     }
 
     const unsigned long elapsedMs = millis() - startMs;
-
-    // ESP8266HTTPClient usa valores negativos para errores de transporte.
-    // Un valor positivo significa que se recibió una respuesta HTTP, incluso 4xx/5xx.
     response.transportSuccess = response.statusCode > 0;
 
     Serial.printf("[HttpClient] Resultado | status=%d | transport=%s | elapsed=%lu ms\n",
-                  response.statusCode,
-                  response.transportSuccess ? "OK" : "FAIL",
-                  elapsedMs);
+                  response.statusCode, response.transportSuccess ? "OK" : "FAIL", elapsedMs);
 
     if (response.transportSuccess)
     {
@@ -92,8 +83,12 @@ HttpResponse HttpClient::executeRequest(const String& url, HttpMethod method, co
             Serial.printf("[HttpClient] HTTP error body: %s\n", response.body.c_str());
         }
     }
+    else if (url.startsWith("https://"))
+    {
+        Serial.printf("[HttpClient] HTTPS transport error: %s (%d)\n",
+                      HTTPClient::errorToString(response.statusCode).c_str(), response.statusCode);
+    }
 
     http.end();
-
     return response;
 }
