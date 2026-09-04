@@ -20,7 +20,7 @@ void ProvisioningService::begin()
     }
     else
     {
-        _wifiService.disconnect(true);
+        _wifiService.disconnect();
     }
 
     startPortal();
@@ -50,6 +50,7 @@ void ProvisioningService::update()
             _connecting = false;
             _provisioned = true;
             _lastError = "";
+            startNetworkScan();
             Serial.println("[ProvisioningService] WiFi configurado correctamente.");
             return;
         }
@@ -156,11 +157,18 @@ void ProvisioningService::registerRoutes()
 
 void ProvisioningService::startNetworkScan()
 {
-    if (WiFi.scanComplete() == WIFI_SCAN_RUNNING)
+    const int previousScan = WiFi.scanComplete();
+    if (previousScan == WIFI_SCAN_RUNNING)
     {
         return;
     }
-    WiFi.scanNetworks(true);
+
+    if (previousScan >= 0)
+    {
+        WiFi.scanDelete();
+    }
+
+    WiFi.scanNetworks();
 }
 
 void ProvisioningService::handleRoot()
@@ -189,7 +197,13 @@ void ProvisioningService::handleConfigure()
     _lastError = "";
     _connecting = true;
     _connectionStartedAt = millis();
+
+    // WiFiService no inicia una nueva conexion si ya existe una activa.
+    // Desconectamos primero para poder probar la red candidata sin perder el AP.
+    _wifiService.disconnect();
+    WiFi.mode(WIFI_AP_STA);
     _wifiService.begin(_candidateSsid, _candidatePassword, true);
+
     _server.send(202, "text/html",
                  "<html><body><p>Conectando a la nueva red. Espere hasta 15 segundos y vuelva al portal.</p></body></html>");
 }
@@ -257,10 +271,13 @@ void ProvisioningService::restorePreviousWifi(const String& error)
 
     if (!_previousSsid.isEmpty())
     {
+        WiFi.mode(WIFI_AP_STA);
         _wifiService.begin(_previousSsid, _previousPassword, true);
     }
     else
     {
         WiFi.mode(WIFI_AP_STA);
     }
+
+    startNetworkScan();
 }
