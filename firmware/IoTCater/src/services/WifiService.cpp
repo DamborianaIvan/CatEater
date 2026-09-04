@@ -32,14 +32,12 @@ void WiFiService::attemptConnection()
     {
         return;
     }
-    if (WiFi.status() == WL_CONNECTED)
-    {
-        return;
-    }
+
     Serial.print("[WifiService] Conectando a ");
     Serial.print(_ssid);
     Serial.println("...");
     WiFi.begin(_ssid.c_str(), _password.c_str());
+    _state = ConnectionState::Connecting;
     _lastReconnectAttempt = millis();
 }
 
