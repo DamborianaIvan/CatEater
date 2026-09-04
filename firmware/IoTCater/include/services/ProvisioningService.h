@@ -19,9 +19,12 @@ class ProvisioningService
     bool consumeProvisioned();
 
    private:
+    static constexpr uint16_t PORT = 8080;
+    static constexpr unsigned long CONNECTION_TIMEOUT_MS = 15000;
+
     WiFiService& _wifiService;
     WifiCredentialsStorage& _credentialsStorage;
-    ESP8266WebServer _server{80};
+    ESP8266WebServer _server{PORT};
     DNSServer _dnsServer;
 
     bool _active = false;
@@ -31,11 +34,11 @@ class ProvisioningService
     unsigned long _connectionStartedAt = 0;
     String _candidateSsid;
     String _candidatePassword;
+    String _previousSsid;
+    String _previousPassword;
     String _lastError;
     String _accessPointSsid;
     String _accessPointPassword;
-
-    static constexpr unsigned long CONNECTION_TIMEOUT_MS = 15000;
 
     void startPortal();
     void stopPortal();
@@ -43,6 +46,7 @@ class ProvisioningService
     void startNetworkScan();
     void handleRoot();
     void handleConfigure();
+    void handleResetWifi();
     void handleNotFound();
     String buildPortalPage() const;
 };
