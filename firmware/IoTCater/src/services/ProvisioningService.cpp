@@ -16,10 +16,7 @@ void ProvisioningService::begin()
     {
         _previousSsid = ssid;
         _previousPassword = password;
-        // Durante la operacion normal usamos exclusivamente STA.
-        // En ESP8266, mantener AP+STA mientras se realizan conexiones HTTPS
-        // reduce el margen de memoria y puede provocar crashes dentro de BearSSL.
-        _wifiService.begin(ssid);
+        _wifiService.begin(ssid, password);
         return;
     }
 
@@ -51,7 +48,6 @@ void ProvisioningService::update()
             _connecting = false;
             _provisioned = true;
             _lastError = "";
-            startNetworkScan();
             Serial.println("[ProvisioningService] WiFi configurado correctamente.");
             return;
         }
@@ -122,7 +118,9 @@ void ProvisioningService::startPortal()
     _dnsServer.start(53, "*", WiFi.softAPIP());
     _server.begin();
     _active = true;
-    startNetworkScan();
+
+    // El escaneo se inicia bajo demanda desde el portal. No se ejecuta al
+    // arrancar el equipo para evitar interferir con la conexion HTTPS.
 
     Serial.print("[ProvisioningService] Portal activo: http://");
     Serial.print(WiFi.softAPIP());
@@ -174,6 +172,11 @@ void ProvisioningService::startNetworkScan()
 
 void ProvisioningService::handleRoot()
 {
+    if (WiFi.scanComplete() == WIFI_SCAN_FAILED)
+    {
+        startNetworkScan();
+    }
+
     _server.send(200, "text/html", buildPortalPage());
 }
 
@@ -277,6 +280,4 @@ void ProvisioningService::restorePreviousWifi(const String& error)
     {
         WiFi.mode(WIFI_AP_STA);
     }
-
-    startNetworkScan();
 }
