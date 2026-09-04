@@ -48,5 +48,6 @@ class ProvisioningService
     void handleConfigure();
     void handleResetWifi();
     void handleNotFound();
+    void restorePreviousWifi(const String& error);
     String buildPortalPage() const;
 };
