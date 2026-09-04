@@ -26,6 +26,13 @@ void ProvisioningService::begin()
 
 void ProvisioningService::update()
 {
+    if (!_active &&
+        _wifiService.getConsecutiveConnectionAttempts() >= MAX_WIFI_CONNECTION_ATTEMPTS)
+    {
+        Serial.println("[ProvisioningService] Limite de intentos WiFi alcanzado. Activando portal de recuperacion.");
+        startPortal();
+    }
+
     if (!_active)
     {
         return;
