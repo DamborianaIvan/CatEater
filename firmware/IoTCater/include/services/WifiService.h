@@ -23,6 +23,7 @@ class WiFiService
     String getIpAddress() const;
     String getMacAddress() const;
     ConnectionState getConnectionState() const;
+    unsigned int getConsecutiveConnectionAttempts() const;
 
     int getRssi() const;
 
@@ -33,6 +34,7 @@ class WiFiService
     String _password;
 
     unsigned long _lastReconnectAttempt = 0;
+    unsigned int _consecutiveConnectionAttempts = 0;
 
     static constexpr unsigned long RECONNECT_INTERVAL = 5000;
 

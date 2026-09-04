@@ -6,6 +6,7 @@ void WiFiService::begin(const String& ssid, const String& password, bool keepAcc
 {
     _ssid = ssid;
     _password = password;
+    _consecutiveConnectionAttempts = 0;
 
     WiFi.persistent(false);
     WiFi.mode(keepAccessPoint ? WIFI_AP_STA : WIFI_STA);
@@ -18,6 +19,7 @@ void WiFiService::disconnect(bool eraseStoredCredentials)
     _ssid = "";
     _password = "";
     _state = ConnectionState::Disconnected;
+    _consecutiveConnectionAttempts = 0;
     if (eraseStoredCredentials)
     {
         WiFi.persistent(true);
@@ -32,14 +34,16 @@ void WiFiService::attemptConnection()
     {
         return;
     }
-    if (WiFi.status() == WL_CONNECTED)
-    {
-        return;
-    }
+
+    ++_consecutiveConnectionAttempts;
+
     Serial.print("[WifiService] Conectando a ");
     Serial.print(_ssid);
-    Serial.println("...");
+    Serial.print(" (intento ");
+    Serial.print(_consecutiveConnectionAttempts);
+    Serial.println(")...");
     WiFi.begin(_ssid.c_str(), _password.c_str());
+    _state = ConnectionState::Connecting;
     _lastReconnectAttempt = millis();
 }
 
@@ -50,6 +54,7 @@ void WiFiService::update()
         if (_state != ConnectionState::Connected)
         {
             _state = ConnectionState::Connected;
+            _consecutiveConnectionAttempts = 0;
             printConnectionInfo();
         }
         return;
@@ -111,4 +116,9 @@ void WiFiService::printConnectionInfo()
 ConnectionState WiFiService::getConnectionState() const
 {
     return _state;
+}
+
+unsigned int WiFiService::getConsecutiveConnectionAttempts() const
+{
+    return _consecutiveConnectionAttempts;
 }
