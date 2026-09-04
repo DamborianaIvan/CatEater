@@ -125,9 +125,7 @@ void setup()
 
     syncService.begin();
     provisioningService.begin();
-
-    if (!provisioningService.isActive())
-        webServer.begin();
+    webServer.begin();
 
     remoteCommandStorage.begin();
     remoteStateService.loadCommand();
@@ -141,7 +139,7 @@ void loop()
     provisioningService.update();
 
     if (provisioningService.consumeProvisioned())
-        webServer.begin();
+        Serial.println("[ProvisioningService] Nueva configuracion WiFi aplicada.");
 
     wifi.update();
 
