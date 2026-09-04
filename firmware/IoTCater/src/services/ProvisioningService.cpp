@@ -16,13 +16,14 @@ void ProvisioningService::begin()
     {
         _previousSsid = ssid;
         _previousPassword = password;
-        _wifiService.begin(ssid, password, true);
-    }
-    else
-    {
-        _wifiService.disconnect();
+        // Durante la operacion normal usamos exclusivamente STA.
+        // En ESP8266, mantener AP+STA mientras se realizan conexiones HTTPS
+        // reduce el margen de memoria y puede provocar crashes dentro de BearSSL.
+        _wifiService.begin(ssid);
+        return;
     }
 
+    _wifiService.disconnect();
     startPortal();
 }
 
@@ -198,8 +199,6 @@ void ProvisioningService::handleConfigure()
     _connecting = true;
     _connectionStartedAt = millis();
 
-    // WiFiService no inicia una nueva conexion si ya existe una activa.
-    // Desconectamos primero para poder probar la red candidata sin perder el AP.
     _wifiService.disconnect();
     WiFi.mode(WIFI_AP_STA);
     _wifiService.begin(_candidateSsid, _candidatePassword, true);
