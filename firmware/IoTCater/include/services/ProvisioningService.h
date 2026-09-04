@@ -21,6 +21,7 @@ class ProvisioningService
    private:
     static constexpr uint16_t PORT = 8080;
     static constexpr unsigned long CONNECTION_TIMEOUT_MS = 15000;
+    static constexpr unsigned int MAX_WIFI_CONNECTION_ATTEMPTS = 10;
 
     WiFiService& _wifiService;
     WifiCredentialsStorage& _credentialsStorage;
