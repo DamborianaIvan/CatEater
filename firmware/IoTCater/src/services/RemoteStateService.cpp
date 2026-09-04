@@ -16,7 +16,7 @@ RemoteStateService::RemoteStateService(ApiClient& apiClient, FeedingService& fee
 
 void RemoteStateService::update()
 {
-    if (!_wifiService.isConnected() || !_apiClient.isBackendAvailable())
+    if (!_wifiService.isConnected())
         return;
 
     const unsigned long now = millis();
@@ -82,26 +82,22 @@ void RemoteStateService::pollMotorState()
 
         _lastConfirmationAttempt = millis();
 
-        if (!_apiClient.isBackendAvailable())
-            return;
-
-        if (_apiClient.completeMotorCommand(_activeCommandId))
-        {
-            _command.status = RemoteCommandStatus::Completed;
-
-            if (!_commandStorage.save(_command))
-            {
-                _diagnostics.record("REMOTE_COMMAND_STATE_ERROR", _activeCommandId.c_str());
-                return;
-            }
-
-            _remoteFeedInProgress = false;
-            _activeCommandId = "";
-        }
-        else
+        if (!_apiClient.completeMotorCommand(_activeCommandId))
         {
             _diagnostics.record("REMOTE_COMMAND_CONFIRM_ERROR", _activeCommandId.c_str());
+            return;
         }
+
+        _command.status = RemoteCommandStatus::Completed;
+
+        if (!_commandStorage.save(_command))
+        {
+            _diagnostics.record("REMOTE_COMMAND_STATE_ERROR", _activeCommandId.c_str());
+            return;
+        }
+
+        _remoteFeedInProgress = false;
+        _activeCommandId = "";
     }
 }
 
