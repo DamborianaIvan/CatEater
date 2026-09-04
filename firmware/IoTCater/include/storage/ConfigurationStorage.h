@@ -13,6 +13,8 @@ class ConfigurationStorage
 
     Configuration loadConfiguration(const Configuration& defaultConfiguration);
 
+    bool clear();
+
    private:
     static constexpr int EEPROM_SIZE = 512;
 
