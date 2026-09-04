@@ -57,6 +57,13 @@ Configuration ConfigurationStorage::loadConfiguration(const Configuration& defau
     return defaultConfiguration;
 }
 
+bool ConfigurationStorage::clear()
+{
+    StoredConfiguration empty{};
+    EEPROM.put(SIGNATURE_ADDRESS, empty);
+    return EEPROM.commit();
+}
+
 bool ConfigurationStorage::isValidConfiguration(const Configuration& configuration) const
 {
     if (!Configuration::isValidStepsPerFeed(configuration.stepsPerFeed))
