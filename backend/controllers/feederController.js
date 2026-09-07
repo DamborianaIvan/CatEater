@@ -16,6 +16,25 @@ const createDefaultSchedules = () =>
     enabled: false
   }));
 
+const toFeederConfiguration = (configuration) => {
+  const currentConfiguration = configuration || {
+    revision: 1,
+    stepsPerFeed: 2048,
+    schedules: createDefaultSchedules()
+  };
+
+  return {
+    revision: currentConfiguration.revision ?? 1,
+    stepsPerFeed: currentConfiguration.stepsPerFeed ?? 2048,
+    schedules: currentConfiguration.schedules.map((schedule) => ({
+      hour: schedule.hour,
+      minute: schedule.minute,
+      portions: schedule.portions,
+      enabled: schedule.enabled
+    }))
+  };
+};
+
 const validateConfiguration = (configuration) => {
   if (!configuration || typeof configuration !== "object") {
     return "La configuración es obligatoria.";
@@ -41,13 +60,34 @@ const getRemoteConfiguration = async (req, res) => {
   try {
     const feeder = await Feeder.findOne({ feederId });
     if (!feeder) return res.status(404).json({ error: "Feeder no encontrado" });
-    let configuration = feeder.configuration;
-    if (!configuration) configuration = { revision: 1, stepsPerFeed: 2048, schedules: createDefaultSchedules() };
-    const schedules = configuration.schedules.map((schedule) => ({ hour: schedule.hour, minute: schedule.minute, portions: schedule.portions, enabled: schedule.enabled }));
-    return res.status(200).json({ revision: configuration.revision, stepsPerFeed: configuration.stepsPerFeed, schedules });
+    return res.status(200).json(toFeederConfiguration(feeder.configuration));
   } catch (error) {
     console.error("Error al obtener configuración del feeder:", error);
     return res.status(500).json({ error: "Error interno del servidor" });
+  }
+};
+
+const getFeederConfiguration = async (req, res) => {
+  const { feederId } = req.params;
+  const userId = req.user?._id;
+
+  if (!feederId || feederId.trim() === "") {
+    return res.status(400).json({ message: "El parámetro feederId es obligatorio y no puede estar vacío." });
+  }
+  if (!userId) {
+    return res.status(401).json({ message: "Acceso no autorizado - usuario no identificado." });
+  }
+
+  try {
+    const feeder = await Feeder.findOne({ feederId, userId });
+    if (!feeder) {
+      return res.status(404).json({ message: "Comedero no encontrado para el usuario especificado." });
+    }
+
+    return res.status(200).json(toFeederConfiguration(feeder.configuration));
+  } catch (error) {
+    console.error("Error al obtener configuración del feeder:", error);
+    return res.status(500).json({ message: "Error interno al obtener la configuración." });
   }
 };
 
@@ -226,19 +266,29 @@ const getMotorStatusNodemcu = async (req, res) => {
 
 const updateFeederConfiguration = async (req, res) => {
   const { feederId } = req.params;
+  const userId = req.user?._id;
   const validationError = validateConfiguration(req.body);
   if (validationError) return res.status(400).json({ message: validationError });
+  if (!userId) return res.status(401).json({ message: "Acceso no autorizado - usuario no identificado." });
   try {
-    const feeder = await Feeder.findOne({ feederId });
-    if (!feeder) return res.status(404).json({ message: "Comedero no encontrado para el usuario." });
-    const currentConfiguration = feeder.configuration || { revision: 1, stepsPerFeed: 2048, schedules: createDefaultSchedules() };
-    const newConfiguration = { stepsPerFeed: req.body.stepsPerFeed, schedules: req.body.schedules };
+    const feeder = await Feeder.findOne({ feederId, userId });
+    if (!feeder) return res.status(404).json({ message: "Comedero no encontrado para el usuario especificado." });
+    const currentConfiguration = toFeederConfiguration(feeder.configuration);
+    const newConfiguration = {
+      stepsPerFeed: req.body.stepsPerFeed,
+      schedules: req.body.schedules.map((schedule) => ({
+        hour: schedule.hour,
+        minute: schedule.minute,
+        portions: schedule.portions,
+        enabled: schedule.enabled
+      }))
+    };
     const configurationChanged = currentConfiguration.stepsPerFeed !== newConfiguration.stepsPerFeed || JSON.stringify(currentConfiguration.schedules) !== JSON.stringify(newConfiguration.schedules);
     if (!configurationChanged) return res.status(200).json({ message: "La configuración no tuvo cambios.", revision: currentConfiguration.revision, configuration: currentConfiguration });
     const newRevision = (currentConfiguration.revision || 1) + 1;
     feeder.configuration = { revision: newRevision, stepsPerFeed: newConfiguration.stepsPerFeed, schedules: newConfiguration.schedules };
     await feeder.save();
-    return res.status(200).json({ message: "Configuración actualizada correctamente.", revision: newRevision, configuration: feeder.configuration });
+    return res.status(200).json({ message: "Configuración actualizada correctamente.", revision: newRevision, configuration: toFeederConfiguration(feeder.configuration) });
   } catch (error) {
     console.error("Error al actualizar configuración:", error);
     return res.status(500).json({ message: "Error interno al actualizar configuración." });
@@ -330,4 +380,4 @@ const heartbeat = async (req, res) => {
   }
 };
 
-module.exports = { getAllFeeders, getMyFeeders, getFeederById, getGlobalFeederById, deleteFeeder, addStartHours, startMotor, editFeeder, getMotorStatus, getMotorStatusNodemcu, completeMotorCommand, getFechasByFeederId, getFeederHistory, syncFeedingHistory, heartbeat, getRemoteConfiguration, updateFeederConfiguration };
+module.exports = { getAllFeeders, getMyFeeders, getFeederById, getGlobalFeederById, deleteFeeder, addStartHours, startMotor, editFeeder, getMotorStatus, getMotorStatusNodemcu, completeMotorCommand, getFechasByFeederId, getFeederHistory, syncFeedingHistory, heartbeat, getRemoteConfiguration, getFeederConfiguration, updateFeederConfiguration };

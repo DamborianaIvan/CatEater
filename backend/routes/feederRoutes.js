@@ -488,6 +488,31 @@ router.get('/feeders/config/:feederId', authenticateDevice, feederController.get
 /**
  * @swagger
  * /feeders/{feederId}/config:
+ *   get:
+ *     summary: Obtener configuración actual del feeder
+ *     description: Endpoint de usuario. Devuelve directamente la configuración remota actual del feeder autenticado.
+ *     tags: [Feeders]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: feederId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Configuración actual.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/FeederConfiguration' }
+ *       401: { description: Usuario no autenticado. }
+ *       404: { description: Feeder no encontrado para el usuario. }
+ *       500: { description: Error interno. }
+ */
+router.get('/feeders/:feederId/config', verifyToken, feederController.getFeederConfiguration);
+
+/**
+ * @swagger
+ * /feeders/{feederId}/config:
  *   put:
  *     summary: Actualizar configuración del feeder
  *     description: Reemplaza de forma completa la configuración remota. El body debe contener exactamente cinco schedules. Si no hay cambios, conserva la revisión actual; si hay cambios, incrementa revision en uno.
