@@ -1,0 +1,5 @@
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'; import { setUnauthorizedHandler } from '../services/api';
+interface AuthValue { token: string | null; ready: boolean; signIn: (token: string) => void; signOut: () => void; }
+const AuthContext = createContext<AuthValue | null>(null);
+export function AuthProvider({ children }: { children: ReactNode }) { const [token, setToken] = useState<string | null>(null); const [ready, setReady] = useState(false); useEffect(() => { setToken(localStorage.getItem('catfeeder.token')); setReady(true); }, []); const signOut = () => { localStorage.removeItem('catfeeder.token'); setToken(null); }; useEffect(() => setUnauthorizedHandler(signOut), []); const value = useMemo(() => ({ token, ready, signIn: (next: string) => { localStorage.setItem('catfeeder.token', next); setToken(next); }, signOut }), [token, ready]); return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>; }
+export const useAuth = () => { const context = useContext(AuthContext); if (!context) throw new Error('AuthProvider required'); return context; };
