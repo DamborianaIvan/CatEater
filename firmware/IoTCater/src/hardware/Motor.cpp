@@ -1,10 +1,7 @@
 #include "hardware/Motor.h"
 #include "domain/Configuration.h"
 
-Motor::Motor()
-    : _stepper(AccelStepper::DRIVER, PIN_STEP, PIN_DIR)
-{
-}
+Motor::Motor() : _stepper(AccelStepper::DRIVER, PIN_STEP, PIN_DIR) {}
 
 void Motor::update()
 {
@@ -52,7 +49,7 @@ bool Motor::feed(int portions)
     const long stepsPerFeed = static_cast<long>(_stepsPerFeed) * portions;
 
     // El sinfin esta montado con sentido de avance inverso.
-    _stepper.move(-stepsPerFeed);
+    _stepper.move(stepsPerFeed);
     _isFeeding = true;
 
     return true;
