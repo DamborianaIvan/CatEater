@@ -13,19 +13,15 @@ export function AppLayout() {
           <span>CatFeeder</span>
         </Link>
 
-        <nav aria-label="Navegación principal">
-          <NavLink to="/feeders" className="nav-link">
-            <Utensils />
-            <span>Mis comederos</span>
-          </NavLink>
-          <Link className="button small" to="/feeders/new">
-            <Plus />
-            <span>Vincular</span>
-          </Link>
-          <button className="text-button" onClick={signOut} aria-label="Salir">
-            <LogOut />
-            <span>Salir</span>
-          </button>
+        <nav className="desktop-nav" aria-label="Navegación principal">
+          <NavLink to="/feeders" className="nav-link"><Utensils /><span>Mis comederos</span></NavLink>
+          <Link className="button small" to="/feeders/new"><Plus /><span>Vincular</span></Link>
+          <button className="text-button" onClick={signOut} aria-label="Salir"><LogOut /><span>Salir</span></button>
+        </nav>
+
+        <nav className="mobile-nav" aria-label="Acciones rápidas">
+          <Link className="mobile-nav-action primary" to="/feeders/new" aria-label="Vincular comedero"><Plus /></Link>
+          <button className="mobile-nav-action" onClick={signOut} aria-label="Salir"><LogOut /></button>
         </nav>
       </header>
       <main><Outlet /></main>
