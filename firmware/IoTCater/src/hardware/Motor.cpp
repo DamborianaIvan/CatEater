@@ -10,6 +10,7 @@ void Motor::update()
     if (_isFeeding && _stepper.distanceToGo() == 0)
     {
         _isFeeding = false;
+        _stepper.disableOutputs();
         Serial.println("[Motor] Alimentacion finalizada.");
     }
 }
@@ -19,12 +20,15 @@ void Motor::begin()
     // A4988 ENABLE is active LOW.
     _stepper.setEnablePin(PIN_ENABLE);
     _stepper.setPinsInverted(false, false, true);
-    _stepper.enableOutputs();
 
     // Conservative initial values for the A4988 + NEMA 17 setup.
     // These can be tuned after the first hardware test.
     _stepper.setMaxSpeed(300);
     _stepper.setAcceleration(100);
+
+    // Keep the motor de-energized while idle. The outputs are enabled
+    // immediately before starting a feeding operation.
+    _stepper.disableOutputs();
 
     Serial.println("[Motor] Inicializado (A4988)");
 }
@@ -49,6 +53,7 @@ bool Motor::feed(int portions)
     const long stepsPerFeed = static_cast<long>(_stepsPerFeed) * portions;
 
     // El sinfin esta montado con sentido de avance inverso.
+    _stepper.enableOutputs();
     _stepper.move(stepsPerFeed);
     _isFeeding = true;
 
