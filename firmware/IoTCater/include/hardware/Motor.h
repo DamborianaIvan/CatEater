@@ -21,10 +21,13 @@ class Motor
    private:
     bool _isFeeding = false;
     int _stepsPerFeed;
-    static const uint8_t PIN_IN1 = D1;
-    static const uint8_t PIN_IN2 = D2;
-    static const uint8_t PIN_IN3 = D6;
-    static const uint8_t PIN_IN4 = D7;
+
+    // A4988: STEP + DIR + ENABLE.
+    // ENABLE is active LOW and is inverted in Motor::begin().
+    static const uint8_t PIN_STEP = D6;
+    static const uint8_t PIN_DIR = D5;
+    static const uint8_t PIN_ENABLE = D7;
+
     AccelStepper _stepper;
 };
 
