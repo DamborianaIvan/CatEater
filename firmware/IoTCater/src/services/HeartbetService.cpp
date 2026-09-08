@@ -8,7 +8,8 @@ HeartbeatService::HeartbeatService(ApiClient& apiClient, WiFiService& wifiServic
 
 void HeartbeatService::begin()
 {
-    _lastHeartbeat = millis();
+    // Permite enviar el primer heartbeat apenas haya WiFi disponible.
+    _lastHeartbeat = millis() - HEARTBEAT_INTERVAL;
 }
 
 void HeartbeatService::update()
