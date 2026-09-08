@@ -19,5 +19,5 @@ class HeartbeatService
 
     unsigned long _lastHeartbeat = 0;
 
-    static constexpr unsigned long HEARTBEAT_INTERVAL = 10000;
+    static constexpr unsigned long HEARTBEAT_INTERVAL = 30000;
 };

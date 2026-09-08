@@ -147,21 +147,16 @@ void loop()
         handleWifiConnected();
 
     timeService.update();
-
-    if (!timeService.isTimeAvailable())
-    {
-        scheduler.update();
-        webServer.update();
-        return;
-    }
-
     scheduler.update();
     webServer.update();
+
+    // La conectividad con el backend no depende de NTP ni del estado del motor.
+    // El heartbeat es la fuente de verdad para lastConnection.
+    heartbeatService.update();
 
     if (!motor.isFeeding())
     {
         remoteStateService.update();
-        heartbeatService.update();
         syncService.update();
     }
 }

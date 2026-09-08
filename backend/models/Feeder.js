@@ -7,7 +7,7 @@ const FeederSchema = new mongoose.Schema({
   feederLogo: { type: String, default: ' ' },
   feederAsign: { type: Boolean, default: false },
   feederQuantity: { type: Number, default: 0 },
-  lastConection: { type: Date, default: Date.now },
+  lastConection: { type: Date, default: null },
   deviceCredentialHash: {
     type: String,
     default: null,
