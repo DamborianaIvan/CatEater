@@ -6,7 +6,7 @@ const toFeederResponse = (feeder) => ({
   status: feeder.getStatus(),
   motorState: feeder.motorInfo?.motorState ?? false,
   portions: feeder.motorInfo?.portions ?? 1,
-  lastConnection: feeder.lastConection
+  lastConnection: feeder.lastConection ?? null
 });
 
 module.exports = {
