@@ -1,50 +1,65 @@
 #include "hardware/Motor.h"
 #include "domain/Configuration.h"
 
-Motor::Motor()
-    : _stepper(AccelStepper::FULL4WIRE, PIN_IN1, PIN_IN3, PIN_IN2, PIN_IN4)
+Motor::Motor() : _stepper(AccelStepper::DRIVER, PIN_STEP, PIN_DIR) {}
 
-{};
-// Esta funcion es la encargada de hacer que el motor avance. La linea .run hace que avance.
 void Motor::update()
 {
     _stepper.run();
+
     if (_isFeeding && _stepper.distanceToGo() == 0)
     {
         _isFeeding = false;
+        _stepper.disableOutputs();
         Serial.println("[Motor] Alimentacion finalizada.");
     }
 }
 
 void Motor::begin()
 {
-    _stepper.setMaxSpeed(600);
+    // A4988 ENABLE is active LOW.
+    _stepper.setEnablePin(PIN_ENABLE);
+    _stepper.setPinsInverted(false, false, true);
+
+    // Conservative initial values for the A4988 + NEMA 17 setup.
+    // These can be tuned after the first hardware test.
+    _stepper.setMaxSpeed(300);
     _stepper.setAcceleration(100);
-    Serial.println("[Motor] Inicializado");
+
+    // Keep the motor de-energized while idle. The outputs are enabled
+    // immediately before starting a feeding operation.
+    _stepper.disableOutputs();
+
+    Serial.println("[Motor] Inicializado (A4988)");
 }
 
-// logica para el funcionamiento de el motor
 bool Motor::feed(int portions)
 {
     Serial.printf("[Motor] feed(%d)\n", portions);
     Serial.printf("[Motor] stepsPerFeed = %d\n", _stepsPerFeed);
+
     if (_isFeeding)
     {
         Serial.println("[Motor] El motor ya esta alimentando.");
         return false;
     }
+
     if (!Configuration::isValidPortions(portions))
     {
         Serial.println("[Motor] Cantidad de porciones invalida.");
         return false;
     }
-    // el static_cast es para decir que el valor no va a cambiar y explicita la conversion a long
-    // El sinfin esta montado con sentido de avance inverso.
+
     const long stepsPerFeed = static_cast<long>(_stepsPerFeed) * portions;
-    _stepper.move(-stepsPerFeed);
+
+    // El sinfin esta montado con sentido de avance inverso.
+    _stepper.enableOutputs();
+    _stepper.move(stepsPerFeed);
     _isFeeding = true;
+
     return true;
 }
+
 bool Motor::setStepsPerFeed(int stepsPerFeed)
 {
     if (!Configuration::isValidStepsPerFeed(stepsPerFeed))
@@ -55,10 +70,12 @@ bool Motor::setStepsPerFeed(int stepsPerFeed)
     _stepsPerFeed = stepsPerFeed;
     return true;
 }
+
 int Motor::getStepsPerFeed() const
 {
     return _stepsPerFeed;
 }
+
 bool Motor::isFeeding() const
 {
     return _isFeeding;
